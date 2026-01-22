@@ -1,0 +1,49 @@
+# XMOS bin files
+*.xe
+
+# XMOS temp files
+.build*
+*.a
+_build*
+*.i
+*.s
+*.xi
+*.o
+*/.build_*/*
+
+# Temp files
+.DS_Store
+*.*~
+*.swp
+*.swn
+*~
+*.swo
+
+# waf build files
+.lock-waf_*
+.waf-*/
+build/
+.build*
+*.pyc
+xscope.xmt
+
+# Traces
+*.gtkw
+*.vcd
+
+# Host binaries 
+
+
+# Documentation build
+
+
+# Misc
+*.log
+*.dSYM
+*.vcd
+*.pyc
+**/.venv/**
+**/.vscode/**
+**.egg-info
+*tests/logs/*
+
