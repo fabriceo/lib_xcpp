@@ -1,9 +1,13 @@
-
+#define DEBUG_UNIT XC_I2C
+#include "debug_print.h"
 #include "XC_I2C_master.hpp"
 
+#if 0
+namespace TESTS {
+
 XCPort p4a( XC::PORT_4A );
-XCPin  scl(p4a, 0b0001);
-XCPin  sda(p4a, 0b0010);
+XCPortBit  scl(p4a, 0b0001);
+XCPortBit  sda(p4a, 0b0010);
 
 XC_I2Cmaster I2CM( scl, sda );
 
@@ -42,3 +46,5 @@ static XC_UNUSED const uint8_t regs_18_19_and_15_17[] ={
         0 }; //sequence ends with a Zero
 
 
+};
+#endif
