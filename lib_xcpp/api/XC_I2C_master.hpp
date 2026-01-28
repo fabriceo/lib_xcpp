@@ -151,16 +151,14 @@ private:
      *  need to be adjusted
      */
     void sclHigh_and_wait(unsigned delay) {
-        int time = timer();
         int tot = 0;
         int stat = 0;
         sclHigh();
         while(1) {
-            time += rise_ticks;
-            timer.waitAfter(time);              
+            timer.waitTicks(rise_ticks);              
             if (scl.peek()) break;              //test status of SCL, after a maximum rise delay.
             tot += rise_ticks;
-            if (tot>one_bit_ticks) {
+            if (tot > one_bit_ticks) {
                 tot -= one_bit_ticks;
                 stat |= 2;
                 tracePut('_');                  //show one bit clock delay stretch
@@ -326,7 +324,7 @@ bool clientSend(I2Crequest_t request) {
 void clientEND() { 
     C.checkPortEND(); tracePut('>'); tracePrint(); }
 
-void measure() {
+void measure() { asm volatile("### measure()");
     //assuming all signals being high at first
     int thigh = 0;
     int tlow  = 0;
@@ -342,7 +340,7 @@ void measure() {
         thigh += XC::getTime() - t;
         timer.waitTicks(half_bit_ticks);
     }
-    debug_printf("t scl rise = %dns, t scl fall = %dns\n",thigh,tlow);
+    debug_printf("time scl rise = %dns, t scl fall = %dns\n",thigh,tlow);
     thigh = 0;
     tlow  = 0;
     for (int i=0; i< 10; i++) {
@@ -357,7 +355,7 @@ void measure() {
         thigh += XC::getTime() - t;
         timer.waitTicks(half_bit_ticks);
     }
-    debug_printf("t sda rise = %dns, t sda fall = %dns\n",thigh,tlow);
+    debug_printf("time sda rise = %dns, t sda fall = %dns\n",thigh,tlow);
 
 }
 
@@ -375,7 +373,6 @@ void masterInit(unsigned kbitsps, bool measure_ = false) {
     bus_busy = 0;
     sda.getPort().enable().setMode(XCPort::OUTPUT_PULLUP);
     scl.getPort().enable().setMode(XCPort::OUTPUT_PULLUP);
-
     timer.waitTicks(one_bit_ticks);
     if (measure_) measure();
 

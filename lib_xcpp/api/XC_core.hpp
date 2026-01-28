@@ -94,6 +94,12 @@ namespace XC {
         PORT_32A= XS1_PORT_32A, PORT_32B= XS1_PORT_32B,                                                 //32 bits ports
   } Port_t;
 
+    //this function returns a number between 0..31 corresponding to each of the above ports
+    //max 16 cpu instructions in single issue
+    constexpr unsigned portCompact(const unsigned x) { 
+    //1->0, 4-> x10, 8-> x16, 10 -> x1A, 20 -> x1E,
+        return ((x >> 8) & 0xf) + (((x>>16)==4)? 0x10 :(((x>>16)==8)? 0x16 : (((x>>16)==16)? 0x1A : (((x>>16)==32)? 0x1E : 0))));
+    }
     //predefined and reserved tokens values
     typedef enum {
         CT_START  = 0,
@@ -534,16 +540,17 @@ public:
 private:
     unsigned val;   //port last value (shadow any out(x)), also contains lat bitwise input when using inVal()
 public:
+    unsigned compact;
 
     //gives possibility to declare a port object without giving its address yet.
     XCPort() { }
 
     //defines a port with its adress using XS1_PORT_xx
-    XCPort(unsigned p) : XCResourceID(p) { enable(); }
+    XCPort(unsigned p) : XCResourceID(p),compact(XC::portCompact(p)) { enable(); }
     //defines a port with its adress and the operating mode
-    XCPort(unsigned p, PortMode_t mode_) : XCResourceID(p) {  enable(); }
+    XCPort(unsigned p, PortMode_t mode_) : XCResourceID(p),compact(XC::portCompact(p)) {  enable(); }
     //defines a port with its adress and the operating mode and the initial value
-    XCPort(unsigned p, PortMode_t mode_, unsigned initial) : XCResourceID(p) { 
+    XCPort(unsigned p, PortMode_t mode_, unsigned initial) : XCResourceID(p),compact(XC::portCompact(p)) { 
         enable().setMode(mode_, initial); }
     //destructor    
     ~XCPort() { if (addr) { free(); } }
@@ -701,7 +708,7 @@ public:
     //returns the port (eventual) last out value, otherwise in())
     unsigned getVal() const { return val; }
     //returns the port single bit (eventual) last out value, otherwise in())
-    unsigned getVal(const unsigned x) const { return oneBit() ? val : (val >> x) & 1; }
+    unsigned getVal(const unsigned x) const { return (val >> x) & 1; }
     //keep default operator=
     XCPort& operator =  (const XCPort&)     = default;
     XCPort& operator =  (XCPort&&) noexcept = default;
@@ -766,6 +773,7 @@ class XCPortBit {
 private:
     XCPort& port;    //by reference as multiple XCPortBits can share the same port information and use its unique shadow value
     const unsigned bit;  
+    //const unsigned sizePort;
 public:
     XCPortBit() : port(XCPortUndefined),bit(0) {}
     XCPortBit(XCPort& p) : port(p), bit(0) { }
@@ -775,9 +783,9 @@ public:
     XCPortBit& set() { port.setBit(bit); return *this; }
     XCPortBit& clr() { port.clrBit(bit); return *this; }
     XCPortBit& set(const unsigned x) { if (x) set(); else clr(); return *this; }
-    unsigned in() const  { if (port.oneBit()) return port.in();  else return (port.in()  >> bit) & 1; }
-    unsigned in_() const { if (port.oneBit()) return port.in_(); else return (port.in_() >> bit) & 1; }
-    unsigned peek() { if (port.oneBit()) return port.peek(); else return (port.peek() >> bit) & 1; }
+    unsigned in() const  { return (port.in()  >> bit) & 1; }
+    unsigned in_() const { return (port.in_() >> bit) & 1; }
+    unsigned peek() { return (port.peek() >> bit) & 1; }
     //returns the port (eventual) last out value, otherwise in())
     unsigned getVal() const { return port.getVal(bit); }
     unsigned getBit()    { return bit; }
@@ -887,7 +895,7 @@ public:
     int in_() { return XCResourceID::in_(); }
     int getTriggerTime() { return getd(); }
     XCTimer& clrTriggerTime() { setCondNone(); return *this; }
-    XCTimer& setTriggerTime(const int x) { setd(x); return setCondAfter(); }
+    XCTimer& setTriggerTime(const int x) {  setCondAfter().setd(x); return *this;  }
     XCTimer& setCondAfter() { setci(0x09); return *this; }
     XCTimer& setCondAfter(const int x) { return setTriggerTime(x); }
 
@@ -916,7 +924,7 @@ public:
     int waitAfter(const int x) { asm volatile("### int waitAfter(const int x)"); 
         return setCondAfter(x).in_(); }
     int waitTicks(const int x) { asm volatile("### int waitTicks(const int x)"); 
-        return waitAfter( in() + x ); }
+        return waitAfter( XC::getTime() + x ); }
     //return time value when using a timer with operator ()
     int operator () () { asm volatile("### operator () ()");
         return in(); }
@@ -967,6 +975,7 @@ namespace XC {
         // use thread ressource timer
         XCTimer rtimer;
         timer += ticks;
+        if ((timer - getTime())<10) return timer;
         return rtimer.getLocal().waitAfter(timer); }
 };
 
