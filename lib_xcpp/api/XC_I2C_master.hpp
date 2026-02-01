@@ -686,7 +686,7 @@ public:
     }
 
     //write a list of value in successive registers.
-    //first value is the start register, second is the final register (included)
+    //first value is the start register, second is the number of following bytes
     //next are the values. This sequence can be repeated, otherwise ended with a 0
     //if second value is 0 then this is replaced by a delay instruction in milliseconds of 10 times first value.
     I2Cres_t writeRegsTable(const char table[]) {
@@ -695,26 +695,24 @@ public:
         I2Cres_t res = ACK;
         while(*p) {
             char first = *(p++);
-            char last  = *(p++);
-            if (last<first) __builtin_trap();
-            if (last == 0) { 
+            char tot   = *(p++);
+            if (tot == 0) { 
                 res = ACK;
-                XC::delayMicros(10000*(unsigned)last);   //can be replaced by Yield
+                XC::delayMicros(10000*(unsigned)first);   //can be replaced by Yield
             } else {
                 if (mode == I2C_SINGLE) {
-                    for (unsigned i = first; (i<= last); i++) 
-                        if ((res = writeReg( i,  *(p++) )) == NACK) break;
+                    for (unsigned i=0; i<tot; i++) 
+                        if ((res = writeReg( first+i,  p[i] )) == NACK) break;
                 } else 
                 if (mode == I2C_MULTIPLE) {
-                    char tot = last - first +1;
                     res = writeRegsList(first,tot,(char*)p);
                     if (res == NACK) {
                         //second try
                         res = writeRegsList(first,tot,(char*)p);
                     }
-                    p += tot;
                 }
             }
+            p += tot;
             if (res==NACK) break;
         } //while
         if (res == NACK) errors++;
