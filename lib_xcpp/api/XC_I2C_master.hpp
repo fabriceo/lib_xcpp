@@ -2,6 +2,7 @@
 #define _XC_I2C_MASTER_HPP_
 
 #include <stdlib.h>         //for malloc and free
+#include <string.h>         //for memset
 #include "XC_core.hpp"
 #undef  DEBUG_UNIT
 #define DEBUG_UNIT XC_I2C
@@ -72,6 +73,9 @@ private:
     char buf[BUF_SIZE];
 
 public:
+
+    XC_I2Cmaster() : clientMode(true), C(XCChanendPortUndefined) { }    //used for client mode
+
     XC_I2Cmaster(XCPortBit& pinscl, XCPortBit& pinsda) : 
         scl(pinscl),sda(pinsda), clientMode(false), C(XCChanendPortUndefined) { }
 
@@ -84,7 +88,6 @@ public:
     XC_I2Cmaster(XCPort& portscl, XCPortBit& pinsda) : 
         scl(portscl), sda(pinsda), clientMode(false), C(XCChanendPortUndefined) { }
 
-    XC_I2Cmaster() : clientMode(true), C(XCChanendPortUndefined) { }    //used for client mode
     XC_I2Cmaster(XCChanendPort &C_) : clientMode(true), C(C_) { }       //used for client mode
 
 private:
@@ -103,7 +106,7 @@ private:
     unsigned sclLow_min_ticks;       // store the minimum time for a valid signal
     unsigned sclHigh_min_ticks;      // store the minimum time for a valid signal
     unsigned bus_off_ticks;          // minimum time required before considering bus free
-    unsigned bus_busy;               // set to 1 when a a start bit is sent, reset to 0 when stop bit is sent
+    volatile unsigned bus_busy;      // set to 1 when a a start bit is sent, reset to 0 when stop bit is sent
 
     //wait timer to reach a target value, unless time already passed. return actual time;
     inline int waitTarget(int target) {
@@ -117,7 +120,6 @@ private:
     //also page 44 of https://www.nxp.com/docs/en/user-guide/UM10204.pdf
     inline void compute_ticks(unsigned kbitsps) {
         unsigned int refHZ = XC::getReferenceHz();
-        kbits_per_second  = kbitsps;
         one_bit_ticks     = refHZ / (1000*kbitsps);
         half_bit_ticks    = one_bit_ticks  / 2;
         quarter_bit_ticks = half_bit_ticks / 2;
@@ -127,12 +129,12 @@ private:
             rise_ticks        = (refHZ * 10 )/10000000; //1000ns
         } else if (kbits_per_second <= 400) {
             sclLow_min_ticks  = (refHZ * 13 )/10000000; //1.3us
-            sclHigh_min_ticks = (refHZ * 06 )/10000000; //600ns
-            rise_ticks        = (refHZ * 03 )/10000000; //300ns 
+            sclHigh_min_ticks = (refHZ *  6 )/10000000; //600ns
+            rise_ticks        = (refHZ *  3 )/10000000; //300ns 
         } else if (kbits_per_second <= 1000) {
-            sclLow_min_ticks  = (refHZ * 04 )/10000000; //400ns
-            sclHigh_min_ticks = (refHZ * 04 )/10000000; //400ns
-            rise_ticks        = (refHZ * 01 )/10000000; //100ns
+            sclLow_min_ticks  = (refHZ *  4 )/10000000; //400ns
+            sclHigh_min_ticks = (refHZ *  4 )/10000000; //400ns
+            rise_ticks        = (refHZ *  1 )/10000000; //100ns
         } else {
             static_assert(1,"Fast-mode Plus not implemented");
         }
@@ -359,12 +361,25 @@ void measure() { asm volatile("### measure()");
 
 }
 
+unsigned stopMe() {
+    if (lock.tryAcquire()) {
+        if (bus_busy) { 
+            lock.release();
+            return 1;
+        }
+        kbits_per_second = 0;
+        //keep locked
+        return 0;
+    }
+    return 1;
+}
 //very first method to call
 void masterInit(unsigned kbitsps, bool measure_ = false) {
     if (clientSend(I2C_INIT)) { 
         C.out(kbitsps/100).outPortEND();
         clientEND();
         kbits_per_second = kbitsps;
+        lock.release(); //in case it was locked
         return; 
     }
     debug_printf("XC_I2C_masterInit(%dkbps)\n",kbitsps);
@@ -385,6 +400,8 @@ void masterInit(unsigned kbitsps, bool measure_ = false) {
     stop_bit();
     traceClear();
     timer.waitTicks(bus_off_ticks); 
+    kbits_per_second  = kbitsps;
+    lock.release(); //in case it was locked
 }
 
 //just send the device adress on the bus and return the answer ack/nack
@@ -559,6 +576,8 @@ bool processServer() {
     return false; 
 } 
 
+
+
 }; // class XC_I2Cmaster
 
 
@@ -573,58 +592,64 @@ typedef enum i2c_reg_access_mode_e {
 typedef enum i2c_device_status_e {
     I2C_DEVICE_NOTTESTED,   //never talked to it yet
     I2C_DEVICE_NOTFOUND,    //seems not responding
-    I2C_DEVICE_NOTMATCH,    //device answer but not as expected
-    I2C_DEVICE_ERROR,       //communication error has happened
-    I2C_DEVICE_EXIST,       //seen on the bus
-    I2C_DEVICE_MATCH,       //recognized as expected
-    I2C_DEVICE_INITIALISED, //properly initialized
-} i2c_device_status_t;
+    I2C_DEVICE_NOTMATCH,    //device answer but does not provide clear authentication (like chip-ID)
+    I2C_DEVICE_ERROR,       //communication error has happened (no answer or strange NACK)
+    I2C_DEVICE_EXIST,       //exists on the bus
+    I2C_DEVICE_MATCH,       //recognized as expected according to a chip ID or deterministic answer
+    I2C_DEVICE_INITIALISED, //properly initialized (basic register initialization)
+    I2C_DEVICE_CONFIGURED   //ready for the expected functions.
+} I2CdeviceStatus_t;
 
 
-//template parameter gives the possibility to define an optional table of shadow registers
+//template parameter gives the possibility to define base I2C object 
+//and SINGLE or MULTIPLE byte access when writing or reading
+//this class also provides register buffering and possibility to read/write 16/32 bits data
 template< XC_I2Cmaster &I2C, i2c_reg_access_mode_t mode = I2C_SINGLE >
 class XC_I2CmasterExtended {
 private:
-    unsigned addr;                  //device address kept in memory
-    unsigned regSize;   
+    unsigned addr;                  //device address kept in memory, defined in constructor
+    unsigned regSize;               //size of the shadow register array (stored in heap)
 public:
-    unsigned ofset;                  //used when shadow register has big size or multiple pages
-    char * pregs;
-    i2c_device_status_t status;     //real time device status
-    unsigned errors;
+    unsigned ofset;                 //used when shadow register has big size or device has multiple pages
+    char * pregs;                   //point on shadow registers (stored in heap)
+    I2CdeviceStatus_t status;     //real time device status
+    unsigned errors;                //number of errors since device initialisation
 
-    void clrShadowReg(){
-        //clear all shadow registers
-        for (unsigned i=0; i<regSize; i++) pregs[i] = 0;
-        ofset = 0;
+    //I2C constructor (device address, shadow register size)
+    XC_I2CmasterExtended(uint8_t addr_, unsigned size_) : addr(addr_),regSize(size_) {
+        pregs = nullptr; //malloc wil be done later 
+        status = I2C_DEVICE_NOTTESTED;
+        errors = 0;
     }
-    //constructor always requiring an I2C address parameter
-    XC_I2CmasterExtended(uint8_t addr_) {
-        //printf("i2c_class(%x,%d)\n",addr_,mode_);
-        addr = addr_; 
-        pregs = nullptr;
-        regSize = 0;
-        status = I2C_DEVICE_NOTTESTED;
-        errors = 0;
-        clrShadowReg();  }
 
-    XC_I2CmasterExtended(uint8_t addr_, unsigned size_) {
-        //printf("i2c_class(%x,%d)\n",addr_,mode_);
-        addr = addr_; 
-        if (size_) {
-            regSize = size_;
-            pregs = (char*)malloc(size_);
-            clrShadowReg();
-        } else { 
-            pregs = nullptr; regSize = 0; }
-        status = I2C_DEVICE_NOTTESTED;
-        errors = 0;
-        }
+    //I2C constructor (device address)
+    XC_I2CmasterExtended(uint8_t addr_) : XC_I2CmasterExtended(addr_,0) { }
 
+    //destructor (free shadow registers)
     ~XC_I2CmasterExtended() { if (pregs) free(pregs); }
 
+    //clear all shadow registers
+    void clrShadowReg(){
+        memset(pregs, 0, regSize);
+        ofset = 0;
+    }
+    //initialize shadow registers if any
+    void init() {
+        if (regSize && (pregs == nullptr)) {
+            pregs = (char*)malloc(regSize);
+            if (pregs == nullptr) regSize = 0; //potential problem (never expected)
+            else clrShadowReg();
+        }
+    }
+    //set device data as in reset mode (clear status, error and shadow registers)
+    void reset() {
+        init();
+        status = I2C_DEVICE_NOTTESTED;
+        errors = 0;
+    }
     //test if a device is available at the given adress
-    i2c_device_status_t testDevice() {
+    I2CdeviceStatus_t testDevice() {
+        init();
         I2Cres_t res = I2C.testDevice(addr);
         if (res == ACK) status = I2C_DEVICE_EXIST;
         else status = I2C_DEVICE_NOTFOUND;
@@ -632,51 +657,78 @@ public:
         return status;
     }
 
-    //write a 8 bit value in a 8bit register. Keep copy in shadow register
-    I2Cres_t write(unsigned num, unsigned val) {
+    //write a 8 bit value in a 8bit register. eventually Keep copy in shadow register
+    I2Cres_t writeReg(unsigned num, unsigned val) {
         if (status < I2C_DEVICE_EXIST) return NACK;
         //keep copy of the value in shadow register
-        if ((ofset+num) < regSize) pregs[ofset+num] = (char)val;
+        if (pregs && ((ofset+num) < regSize)) pregs[ofset+num] = (char)val;
         I2Cres_t res = I2C.writeReg(addr,num,val);
         if (res == NACK) errors++;
         return res;
     }
-    //write a list of value in successive registers.
-    //first value of the list is the start register
-    //second is the last register (included)
-    //next are the values
-    //this sequence can be repeated, otherwise ended with a 0
-    I2Cres_t writeList(const char list[]) {
+    
+    I2Cres_t writeRegsList(unsigned num, unsigned size, char buf[]) {
         if (status < I2C_DEVICE_EXIST) return NACK;
-        const char *p = list;
+        I2Cres_t res = ACK;
+        if (mode == I2C_SINGLE) {
+            for (int i=0; i<size; i++) 
+                if ((res = writeReg(num+i, buf[i])) == NACK) break;
+        } else
+        if (mode == I2C_MULTIPLE) {
+            unsigned n;
+            res = I2C.write(addr,size,buf,n,true);
+            I2C.tracePrint();
+            if (n != size) res = NACK;
+        }
+        if (res == NACK) errors++;
+        return res;
+
+    }
+
+    //write a list of value in successive registers.
+    //first value is the start register, second is the final register (included)
+    //next are the values. This sequence can be repeated, otherwise ended with a 0
+    //if second value is 0 then this is replaced by a delay instruction in milliseconds of 10 times first value.
+    I2Cres_t writeRegsTable(const char table[]) {
+        if (status < I2C_DEVICE_EXIST) return NACK;
+        const char *p = table;
         I2Cres_t res = ACK;
         while(*p) {
             char first = *(p++);
             char last  = *(p++);
-            if (mode == I2C_SINGLE) {
-                for (unsigned i=first; (i<= last); i++)
-                    if ((res = write( i, *(p++) )) == NACK) break;
-            } else 
-            if (mode == I2C_MULTIPLE) {
-                char tot = last - first +1;
-                unsigned n;
-                res = I2C.writeRegs(addr,first,tot,p,n);
-                p += tot;
+            if (last<first) __builtin_trap();
+            if (last == 0) { 
+                res = ACK;
+                XC::delayMicros(10000*(unsigned)last);   //can be replaced by Yield
+            } else {
+                if (mode == I2C_SINGLE) {
+                    for (unsigned i = first; (i<= last); i++) 
+                        if ((res = writeReg( i,  *(p++) )) == NACK) break;
+                } else 
+                if (mode == I2C_MULTIPLE) {
+                    char tot = last - first +1;
+                    res = writeRegsList(first,tot,(char*)p);
+                    if (res == NACK) {
+                        //second try
+                        res = writeRegsList(first,tot,(char*)p);
+                    }
+                    p += tot;
+                }
             }
             if (res==NACK) break;
-         } //while
+        } //while
         if (res == NACK) errors++;
         return res;
     }
     //write a 16 bit value in 2 consecutive register (lsb first)
-    I2Cres_t write2(unsigned num, unsigned val) {
+    I2Cres_t writeReg2(unsigned num, unsigned val) {
         if (status < I2C_DEVICE_EXIST) return NACK;
         I2Cres_t res = ACK;
         char dummy[2] = { (char)val , (char)(val >> 8) }; //LSB first
-        if ((ofset+num+1) < regSize) { pregs[ofset+num] = dummy[0]; pregs[ofset+num+1] = dummy[1]; }
+        if (pregs && ((ofset+num+1) < regSize)) { pregs[ofset+num] = dummy[0]; pregs[ofset+num+1] = dummy[1]; }
         if (mode == I2C_SINGLE) {
-            res = write(num,dummy[0]);
-            if (res == ACK) res = write(num+1,dummy[1]);
+            res = writeReg(num,dummy[0]);
+            if (res == ACK) res = writeReg(num+1,dummy[1]);
         } else
         if (mode == I2C_MULTIPLE) {
             unsigned n;
@@ -686,18 +738,18 @@ public:
         return res;
     }
     //write a 32 bit value in 4 consecutive register (lsb first)
-    I2Cres_t write4(unsigned num, unsigned val) {
+    I2Cres_t writeReg4(unsigned num, unsigned val) {
         if (status < I2C_DEVICE_EXIST) return NACK;
         I2Cres_t res = ACK;
         char dummy[4] = { (char)val , (char)(val >> 8), (char)(val >>16), (char)(val >> 24) };
-        if ((ofset+num+3) < regSize) {
+        if (pregs && ((ofset+num+3) < regSize)) {
             pregs[ofset+num] = dummy[0]; pregs[ofset+num+1] = dummy[1]; 
             pregs[ofset+num+2] = dummy[2]; pregs[ofset+num+3] = dummy[3]; }
         if (mode == I2C_SINGLE) {
-            res = write(num,dummy[0]);
-            if (res == ACK) res = write(num+1,dummy[1]);
-            if (res == ACK) res = write(num+2,dummy[2]);
-            if (res == ACK) res = write(num+3,dummy[3]);
+            res = writeReg(num,dummy[0]);
+            if (res == ACK) res = writeReg(num+1,dummy[1]);
+            if (res == ACK) res = writeReg(num+2,dummy[2]);
+            if (res == ACK) res = writeReg(num+3,dummy[3]);
         } else
         if (mode == I2C_MULTIPLE) {
             unsigned n;
@@ -706,31 +758,33 @@ public:
         if (res == NACK) errors++;
         return res;
     }
-    //read a 8 bit value from a register
-    I2Cres_t read(unsigned num, unsigned &val) {
+
+
+    //read a 8 bit value from a register. value eventually stored in shadow register
+    I2Cres_t readReg(unsigned num, unsigned &val) {
         if (status < I2C_DEVICE_EXIST) return NACK;
         char dummy[1] = { (char)num };
         unsigned n=0;
         I2Cres_t res = I2C.write(addr,1,dummy,n,false);   //write register adress, no stop bits
-        if (res == ACK) res = I2C.read(addr,1,dummy,true);
+        if (res == ACK) res = I2C.read(addr,1,dummy,true); //read 1 register (repeated start bit) en send stop bit
         else  I2C.sendStopBit();
         I2C.tracePrint();
-        if (res == ACK) {
-           if ((ofset+num) < regSize) pregs[ofset+num] = dummy[0];
-           val = dummy[0];
-        }
         if (res == NACK) errors++;
+        else {
+           val = dummy[0];
+           if (pregs && ((ofset+num) < regSize)) pregs[ofset+num] = dummy[0];
+        }
         return res;
     }
     //read a 16 bit value from 2 consecutive registers (lsb first)
-    I2Cres_t read2(unsigned num, unsigned &val) {
+    I2Cres_t readReg2(unsigned num, unsigned &val) {
         if (status < I2C_DEVICE_EXIST) return NACK;
         char dummy[2] = { (char)num, 0 };
         I2Cres_t res = ACK;
         if (mode == I2C_SINGLE) {
             unsigned v1,v2;
-            res = read(num,v1);
-            if (res == ACK) res = read(num+1,v2);
+            res = readReg(num,v1);
+            if (res == ACK) res = readReg(num+1,v2);
             dummy[0] = v1; dummy[1]=v2;
         } else
         if (mode == I2C_MULTIPLE ) {
@@ -739,22 +793,24 @@ public:
             if (res == ACK) res = I2C.read(addr,2,dummy,true);
             else I2C.sendStopBit();
         }
-        if ((ofset+num+1) < regSize) { pregs[ofset+num] = dummy[0]; pregs[ofset+num+1] = dummy[1]; }
-        val = (unsigned)dummy[0] | ((unsigned)dummy[1] << 8);
         if (res == NACK) errors++;
+        else {
+            val = (unsigned)dummy[0] | ((unsigned)dummy[1] << 8);
+            if (pregs && ((ofset+num+1) < regSize)) { pregs[ofset+num] = dummy[0]; pregs[ofset+num+1] = dummy[1]; }
+        }
         return res;
     }
     //read a 32 bit value from 4 consecutive registers (lsb first)
-    unsigned read4(unsigned num, unsigned &val) {
+    unsigned readReg4(unsigned num, unsigned &val) {
         if (status < I2C_DEVICE_EXIST) return NACK;
         char dummy[4] = { (char)num, 0, 0, 0 };
         I2Cres_t res = ACK;
         if (mode == I2C_SINGLE) {
             unsigned v1,v2,v3,v4;
-            res = read(num,v1);
-            if (res == ACK) res = read(num+1,v2);
-            if (res == ACK) res = read(num+2,v3);
-            if (res == ACK) res = read(num+3,v4);
+            res = readReg(num,v1);
+            if (res == ACK) res = readReg(num+1,v2);
+            if (res == ACK) res = readReg(num+2,v3);
+            if (res == ACK) res = readReg(num+3,v4);
             dummy[0] = v1; dummy[1]=v2; dummy[2] = v3; dummy[3]=v4;
         } else
         if (mode == I2C_MULTIPLE ) {
@@ -763,55 +819,39 @@ public:
             if (res == ACK) res = I2C.read(addr,4,dummy,true);
             else I2C.sendStopBit();
         }
-        if ((ofset+num+3) < regSize) {
-            pregs[ofset+num] = dummy[0]; pregs[ofset+num+1] = dummy[1]; 
-            pregs[ofset+num+2] = dummy[2]; pregs[ofset+num+3] = dummy[3]; }
+        if (res == NACK) errors++;
+        else {
+            if (pregs && ((ofset+num+3) < regSize)) {
+                pregs[ofset+num] = dummy[0]; pregs[ofset+num+1] = dummy[1]; 
+                pregs[ofset+num+2] = dummy[2]; pregs[ofset+num+3] = dummy[3]; }
             val = (unsigned)dummy[0] | ((unsigned)dummy[1] << 8) | ((unsigned)dummy[2] << 16) | ((unsigned)dummy[3] << 24);
+        }
+        return res;
+    }
+    //update a register by doing a bitwise "and", and then a bitwise "or"
+    //with the 2 provided 8 bits parameters. eventually use the shadow register as the original value
+    I2Cres_t writeRegAndOr(unsigned num, unsigned and_, unsigned or_) {
+        if (status < I2C_DEVICE_EXIST) return NACK;
+        unsigned val;
+        I2Cres_t res = ACK;
+        if (pregs && ((ofset+num) < regSize)) val = pregs[ofset+num];
+        else res = readReg(num,val);
+        if (res == ACK) {
+            val = (val & and_) | or_;
+            res = writeReg(num, val);
+        }
         if (res == NACK) errors++;
         return res;
     }
     //update a register by setting some bits according to 8bit mask given
-    I2Cres_t setMask(unsigned num, unsigned mask) {
-        if (status < I2C_DEVICE_EXIST) return NACK;
-        unsigned val;
-        I2Cres_t res = ACK;
-        if ((ofset+num) < regSize) val = pregs[ofset+num];
-        else res = read(num,val);
-        if (res == ACK) {
-            val |= mask;
-            res = write(num,val);
-        }
-        return res;
+    I2Cres_t setRegMask(unsigned num, unsigned mask) {
+        return writeRegAndOr(num, 0xFFFFFFFF, mask );
     }
     //update a register by clearing some bits according to 8bit mask given (a "not" instruction is used)
-    I2Cres_t clrMask(unsigned num, unsigned mask) {
-        if (status < I2C_DEVICE_EXIST) return NACK;
-        unsigned val;
-        I2Cres_t res = ACK;
-        if ((ofset+num) < regSize) val = pregs[ofset+num];
-        else res = read(num,val);
-        if (res == ACK) {
-            val &= ~mask;
-            write(num,val);
-        }
-        if (res == NACK) errors++;
-        return res;
+    I2Cres_t clrRegMask(unsigned num, unsigned mask) {
+        return writeRegAndOr(num, ~mask, 0 );
     }
-    //update a register by doing a bitwise "and", and then a bitwise "or"
-    //with the 2 provided 8 bits parameters
-    I2Cres_t writeAndOr(unsigned num, unsigned and_, unsigned or_) {
-        if (status < I2C_DEVICE_EXIST) return NACK;
-        unsigned val;
-        I2Cres_t res = ACK;
-        if ((ofset+num) < regSize) val = pregs[ofset+num];
-        else res = read(num,val);
-        if (res == ACK) {
-            val = (val & and_) | or_;
-            write(num, val);
-        }
-        if (res == NACK) errors++;
-        return res;
-    }
+
 };
 #undef DEBUG_UNIT
 #endif //_XC_I2C_MASTER_HPP_

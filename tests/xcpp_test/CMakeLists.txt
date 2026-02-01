@@ -11,9 +11,7 @@ set(BASE_BUILD_FLAGS        -Wall -Wno-switch-default -Os -g
                             -DPRINTF=1 -DXSCOPE=1 -fxscope -DDEBUG_PRINT_ENABLE=1)
 
                             #-fcomment-asm -fasm-linenum
-#include(${CMAKE_CURRENT_LIST_DIR}/../../examples/deps.cmake)
 
-#
 set(APP_COMPILER_FLAGS_EVK ${BASE_BUILD_FLAGS} 
     -DOTHERFLAG=1 -DXC_REPORT_RESOURCES=1
     )

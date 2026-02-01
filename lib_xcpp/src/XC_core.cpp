@@ -2,6 +2,10 @@
 #include <platform.h>
 #include "XC_core.hpp"
 
+ unsigned XCtimeStart1;
+ unsigned XCtimeStart2;
+
+
 namespace XC {
 
     unsigned referenceHz = PLATFORM_REFERENCE_HZ;
