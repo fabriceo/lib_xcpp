@@ -865,13 +865,11 @@ extern XCPortBit  XCPortBitUndefined;
 simple timer object using gettime instruction.
 can be used when waiting doesnt require to hold the task to give corresponding mips to other tasks.
 */
-extern unsigned XCtimeStart1;
-extern unsigned XCtimeStart2;
 class XCTimerMicros {
 private:
     long long ofset;
 public:
-    XCTimerMicros() { XCtimeStart1 = XC::getTime(); XCtimeStart2 = XC::getTime(); }
+    XCTimerMicros() { }
     XCTimerMicros(const long long t) { set(t); }
     XCTimerMicros& clr() { ofset = XC::micros(); return *this; }
     XCTimerMicros& set(const long long t) { ofset = XC::micros() + t; return *this; }

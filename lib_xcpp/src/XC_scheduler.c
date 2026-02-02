@@ -15,7 +15,6 @@
  * Lesser General Public License for more details.
  */
 
-#include "XC_scheduler.h"
 #include <xs1.h>        //for get_logical_core_id()
 #include <stdlib.h>     //for malloc
 #if defined(DEBUG_PRINT_ENABLE) && (DEBUG_PRINT_ENABLE == 1)
@@ -23,29 +22,30 @@
 #else
 #define debug_printf(...)
 #endif
+#include "XC_scheduler.h"
 
-
-
-typedef struct s_task {
-//dont change the structure order, some offset are used in assembly routines
-/* 0 */    unsigned       sp;      //latest Stack pointer in tcb[0]. if null, task will be deallocated
-/* 1 */    unsigned       pc;      //adress of the task entrypoint, set during initialization, then always 0
-/* 2 */    unsigned       param;   //value of the 32bit param given at task entry in r0
-/* 3 */    char *         name;    //name of the task given at task entry in r1
-/* 4 */    struct s_task* next;
-/* 5 */    struct s_task* prev;
-} task_t;
-
-
-typedef struct s_thread {
-//dont change the structure order, some offset are used in assembly routines
-/* 0 */    task_t*        current;  //point on the current task tcb (one which is running)
-/* 1 */    task_t*        main;     //point on the main task tcb (the one which created the first second task)
-} thread_t;
 
 //one task-list per thread/core id, predefined for max 8 core-id
 thread_t threadArray[8] = {
         {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0}, {0, 0} };
+
+task_t *  XCSchedulerCreate_(const unsigned taskAddress, const unsigned stackSize, const unsigned name, const unsigned param)
+{
+    //convert stacksize to bytes and add tcb size
+    int alloc = (stackSize+1) * 4 + sizeof(task_t);
+    task_t * tcb = (task_t *)malloc( alloc + 4);    //add 4 as SP points on the highest word where lr is stored before stack pointer is changed
+    if (tcb == 0) __builtin_trap();
+    //add new task at the end of the thread list
+    tcb->name = (char*)name;
+    tcb->param= param;
+    tcb->pc   = taskAddress;
+    tcb->next = tcb->prev = 0;
+    //compute top of the stack address, pointing on the last word allocated
+    unsigned SP = (unsigned)tcb + alloc;
+    tcb->sp = SP & ~7;   //force allignement 8. this may reduce SP by one but alloc includs one more
+    debug_printf("%d create %s, tcb @ %x = %d\n",XCS_GET_TIME(),tcb->name,(unsigned)tcb,(unsigned)tcb);
+    return tcb;
+}
 
 //create a task by allocating stack and context and adding context at the end of main thread list
 unsigned XCSchedulerCreate(const unsigned taskAddress, const unsigned stackSize, const unsigned name, const unsigned param)
@@ -56,28 +56,20 @@ unsigned XCSchedulerCreate(const unsigned taskAddress, const unsigned stackSize,
             task_t * tcb = (task_t*)malloc(sizeof(task_t));
             if (tcb == 0) __builtin_trap();
             //initialize main task to point on itself
-            thread->main = thread->current = tcb->next = tcb->prev = tcb;
+            thread->main = tcb->next = tcb->prev = tcb;
             tcb->param = tcb->pc = 0; tcb->name = "main";
             debug_printf("%d main task creation @ %x = %d\n",XCS_GET_TIME(),(unsigned)thread->main,(unsigned)thread->main);
     }
-    //convert stacksize to bytes and add tcb size
-    int alloc = (stackSize+1) * 4 + sizeof(task_t);
-    task_t * tcb = (task_t *)malloc( alloc + 4);    //add 4 as SP points on the highest word where lr is stored before stack pointer is changed
-    if (tcb == 0) __builtin_trap();
+    task_t * tcb =  XCSchedulerCreate_(taskAddress,stackSize,name,param);
     //add new task at the end of the thread list
     tcb->next = thread->main;
     tcb->prev = thread->main->prev; //equivalent to last
     thread->main->prev = tcb;       //update equivalent to last
     tcb->prev->next = tcb;          //set previous task to point on this one
-    tcb->name = (char*)name;
-    tcb->param= param;
-    tcb->pc   = taskAddress;
-    //compute top of the stack address, pointing on the last word allocated
-    int SP = (unsigned)tcb + alloc;
-    tcb->sp = SP & ~7;   //force allignement 8. this may reduce SP by one but alloc includs one more
-    debug_printf("%d create %s, tcb @ %x = %d\n",XCS_GET_TIME(),tcb->name,(unsigned)tcb,(unsigned)tcb);
+    if (thread->current == 0) thread->current = tcb;
     return (unsigned)tcb;
 }
+
 
 unsigned XCSchedulerYieldDelay(const int max) {
     unsigned res;
