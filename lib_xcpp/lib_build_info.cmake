@@ -4,6 +4,6 @@ set(LIB_INCLUDES api)
 set(LIB_COMPILER_FLAGS -O3 -mno-dual-issue -fno-threadsafe-statics)
 set(LIB_DEPENDENT_MODULES "lib_logging")
 set(LIB_OPTIONAL_HEADERS "")
-set(LIB_ASM_SRCS src/XC_schedulerYield.S)
+#set(LIB_ASM_SRCS src/XC_schedulerYield.S)
 
 XMOS_REGISTER_MODULE()
