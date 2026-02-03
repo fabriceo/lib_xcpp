@@ -199,7 +199,7 @@ namespace XC {
   //imediately switch to next task in round robin list (if any) and return here only after a delay (in cpu ticks) with no jitter
   XC_UNUSED static void yieldDelaySync(int &localTime, unsigned delayticks) { 
 #ifdef XC_SCHEDULER_H
-    unsigned res;
+    XCStaskPtr_t res;
     localTime = XCS_SET_TIME(delayticks);
     do  res  = XCSchedulerYield();
     while  ( ! XCS_END_TIME(localTime) );

@@ -3,7 +3,7 @@ VERSION = 1.0.0
 DEPENDENT_MODULES =
 
 MODULE_XCC_FLAGS = $(XCC_FLAGS) \
-                   -Os -fno-threadsafe-statics
+                   -O3 -fno-threadsafe-statics
 
 OPTIONAL_HEADERS += 
 
