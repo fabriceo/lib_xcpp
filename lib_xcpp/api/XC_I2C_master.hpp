@@ -607,16 +607,16 @@ typedef enum i2c_device_status_e {
 template< XC_I2Cmaster &I2C, i2c_reg_access_mode_t mode = I2C_SINGLE >
 class XC_I2CmasterExtended {
 private:
-    unsigned addr;                  //device address kept in memory, defined in constructor
     unsigned regSize;               //size of the shadow register array (stored in heap)
 public:
+    unsigned addr;                  //device address kept in memory, defined in constructor
     unsigned ofset;                 //used when shadow register has big size or device has multiple pages
     char * pregs;                   //point on shadow registers (stored in heap)
     I2CdeviceStatus_t status;     //real time device status
     unsigned errors;                //number of errors since device initialisation
 
     //I2C constructor (device address, shadow register size)
-    XC_I2CmasterExtended(uint8_t addr_, unsigned size_) : addr(addr_),regSize(size_) {
+    XC_I2CmasterExtended(uint8_t addr_, unsigned size_) : regSize(size_),addr(addr_) {
         pregs = nullptr; //malloc wil be done later 
         status = I2C_DEVICE_NOTTESTED;
         errors = 0;
