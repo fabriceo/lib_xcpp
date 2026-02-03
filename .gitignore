@@ -6,13 +6,12 @@
 *.a
 _build*
 *.i
-*.s
 *.xi
 *.o
 */.build_*/*
 
 # Temp files
-.DS_Store
+*.DS_Store
 *.*~
 *.swp
 *.swn
