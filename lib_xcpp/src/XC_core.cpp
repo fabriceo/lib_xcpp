@@ -58,18 +58,20 @@ namespace XC {
         return local.ll;
     }
 
-    void delayMicros(unsigned delaymicros) {
-        unsigned long long val = lmulu(micros_ticks_factor,delaymicros).ull;
-        unsigned ticks = lextract(val,micros_ticks_prediv);
-        delayTicks(ticks);
+    int microsToTicks(unsigned us) {
+        long long val = lmulu(micros_ticks_factor,us).ll;
+        lsat(val,micros_ticks_prediv);
+        int ticks = lextract(val,micros_ticks_prediv);
+        return ticks;
+    }
+
+    void delayMicros(unsigned delaymicros) { 
+        delayTicks( microsToTicks(delaymicros) );
     }
 
     int delaySyncMicros(int &timeLast, unsigned delaymicros) {
-        unsigned long long val = lmulu(micros_ticks_factor,delaymicros).ull;
-        unsigned ticks = lextract(val,micros_ticks_prediv);
-        timeLast += ticks;
-        if (timeLast - getTime()<10) return 0;
-        else return delaySyncTicks(timeLast, ticks);
+        int ticks = microsToTicks(delaymicros);
+        return delaySyncTicks(timeLast, ticks);
     }
 
     namespace PLL {

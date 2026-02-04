@@ -6,7 +6,7 @@
 //inspired from https://github.com/xcore/tool_axe 
 //and from XMOS xcore standard library
 
-// Object Class to be used by user program start with XC and the first letter in capital
+// Object Class to be used by user program, start with XC and the first letter in capital
 // example : XCPort p; XCTimer t; XCLock l; XCChanend c;
 
 #include <xs1.h>
@@ -14,64 +14,71 @@
 #include <stdint.h>
 #include <stdio.h>
 
+//various helpers macros
+
 #ifndef XC_UNUSED
-#define XC_UNUSED __attribute__ ((unused))
+#define XC_UNUSED       __attribute__ ((unused))
 #endif
 #ifndef XC_NOINLINE
-#define XC_NOINLINE __attribute__ ((noinline))
+#define XC_NOINLINE     __attribute__ ((noinline))
 #endif
 #ifndef XC_NAKED
-#define XC_NAKED __attribute__ ((naked))
+#define XC_NAKED        __attribute__ ((naked))
 #endif
 #ifndef XC_DUAL_ISSUE
-#define XC_DUAL_ISSUE __attribute__ ((dual_issue))
+#define XC_DUAL_ISSUE   __attribute__ ((dual_issue))
 #endif
 #ifndef XC_SINGLE_ISSUE
 #define XC_SINGLE_ISSUE __attribute__ ((single_issue))
 #endif
 
 #ifndef XC_ALIGNED
-#define XC_ALIGNED(_X) __attribute__ ((aligned(_X)))
+#define XC_ALIGNED(_X)  __attribute__ ((aligned(_X)))
 #endif
 
-//concat 2 parameters
 #ifndef XC_JOIN0
-#define XC_JOIN0(x,y) x ## y
-#define XC_JOIN(x,y) XC_JOIN0(x,y)
+#define XC_JOIN0(x,y)   x ## y
+//concat 2 parameters
+#define XC_JOIN(x,y)    XC_JOIN0(x,y)
 #endif
 
-//generate a string for the given parameter with surrounding ""
+#ifndef XC_STRINGIFY
 #define XC_STRINGIFY_I(...) #__VA_ARGS__
-#define XC_STRINGIFY(_S) XC_STRINGIFY_I(_S)
+//generate a string for the given parameter with surrounding ""
+#define XC_STRINGIFY(_S)    XC_STRINGIFY_I(_S)
+#endif
 
+#ifndef XC_UNIQUE_LABEL
+#define XC_UNIQUE_LABEL_II(_BNAME, _CNT)    _BNAME ## _CNT
+#define XC_UNIQUE_LABEL_I(_BNAME, _CNT)     XC_UNIQUE_LABEL_II(_BNAME, _CNT)
 //provide a unique label by adding the compiler unique counter value
-#define XC_UNIQUE_LABEL_II(_BNAME, _CNT) _BNAME ## _CNT
-#define XC_UNIQUE_LABEL_I(_BNAME, _CNT) XC_UNIQUE_LABEL_II(_BNAME, _CNT)
-#define XC_UNIQUE_LABEL(_BNAME) XC_UNIQUE_LABEL_I(_BNAME, __COUNTER__)
+#define XC_UNIQUE_LABEL(_BNAME)             XC_UNIQUE_LABEL_I(_BNAME, __COUNTER__)
+#endif
 
 //set the adress of a function in a variable
 #define XC_FUNC_ADDRESS(_f,_n)     do { register unsigned _r asm("r11"); asm ("ldap %0," #_f : "=r"(_r)); _n=r; } while(0)
 //set the stacksize of a function in a variable (only for extern "c" linkage)
 #define XC_FUNC_NSTACKWORDS(_f,_n) do { asm ("ldc %0,  " #_f ".nstackwords"  : "=r"(_n) ); } while (0)
 
+//check for minimum c++11
 #ifdef __cplusplus
 #if __cplusplus < 201103L
 #warning missing -std=c++11 in compiler options
 #endif
 
-//some basic types used in XC classes
 namespace XC {
+//some basic types used in XC classes
 
     //resource type as unsigend integer representing resource adress in the processor
     typedef unsigned Resource_t;
-    //CPU identifier to allocate a resource type with getr instruction
+    //xcore identifier to allocate a resource type with getr instruction
     typedef enum  {
         TYPE_PORT    = 0, //non allocatable
         TYPE_TIMER   = 1, TYPE_CHANEND = 2, TYPE_SYNC    = 3, TYPE_THREAD  = 4, TYPE_LOCK    = 5, 
         TYPE_CLKBLK  = 6, TYPE_SWMEM   = 8, TYPE_PS      =11, TYPE_CONFIG  =12 //non allocatable
     } ResourceType_t;
 
-    //CPU identifier for each clock block
+    //xcore identifier for each clock block
     typedef enum { 
         CLK_REF    = 0x001, CLK_XCORE = 0x101,
         CLKBLK_REF = 0x006, CLKBLK_1  = XS1_CLKBLK_1, CLKBLK_2 = XS1_CLKBLK_2, CLKBLK_3 = XS1_CLKBLK_3, CLKBLK_4 = XS1_CLKBLK_4, CLKBLK_5 = XS1_CLKBLK_5,
@@ -95,7 +102,7 @@ namespace XC {
   } Port_t;
 
     //this function returns a number between 0..31 corresponding to each of the above ports
-    //max 16 cpu instructions in single issue
+    //max 16 cpu instructions in single issue. not used yet
     constexpr unsigned portCompact(const unsigned x) { 
     //1->0, 4-> x10, 8-> x16, 10 -> x1A, 20 -> x1E,
         return ((x >> 8) & 0xf) + (((x>>16)==4)? 0x10 :(((x>>16)==8)? 0x16 : (((x>>16)==16)? 0x1A : (((x>>16)==32)? 0x1E : 0))));
@@ -114,6 +121,7 @@ namespace XC {
         CT_CREDIT8 = 0xE0, CT_CREDIT64, CT_LRESET, CT_CREDIT_RESET, CT_CREDIT16, CT_HELLO = 0xE6,
   } CTValue_t ;
 
+  //token used to communicate across tiles between client and server. Experimental
   typedef enum {
         PORT_SERVER = 0x40, PORT_CLIENT = 0x41,
         I2C_SERVER  = 0x50, I2C_CLIENT  = 0x51,
@@ -166,7 +174,7 @@ namespace XC {
     inline void     barrier() { asm volatile("":::"memory"); }//,"r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r10","r11");
 };
 
-//partial support of select statement without needing <xcore.h>
+//partial support of "select" statement without needing <xcore.h>
 namespace XC {
   //this function will return an interger to be used within a switch statement
   //the return will be done via an event set with a vector defined by &XC::selectVector
@@ -465,8 +473,8 @@ public:
   //sets a condition on the ressource
   void inline setc(const unsigned c)  { asm volatile("setc res[%0],%1"::"r"(addr),"r"(c)); }
   //sets a condition on the ressource (immediate 0..11)
-  void inline setci(const unsigned i) { 
-    asm volatile("setc res[%0],%1"::"r"(addr),"n"(i)); }
+  //WILL NOT COMPILE IF OPTIMIZATION IS BELOW 2 !!!
+  void inline setci(const unsigned i) {  asm volatile("setc res[%0],%1"::"r"(addr),"n"(i)); }
   //sets the data register attached to a resource
   void inline setd(const unsigned d)  { asm volatile("setd res[%0],%1"::"r"(addr),"r"(d)); }
   //returns the value of the data register attached to a resource
@@ -579,7 +587,7 @@ public:
     XCPort(unsigned p, PortMode_t mode_) : XCResourceID(p) {  
         setMode(mode_); }
     //defines a port with its adress and the operating mode and the initial value
-    //should be used only after main() is started
+    //should be used only after main() is started, not in global definition
     XCPort(unsigned p, PortMode_t mode_, unsigned initial) : XCResourceID(p) { 
         setMode(mode_, initial); }
     //destructor    
@@ -1019,8 +1027,9 @@ namespace XC {
         // use thread ressource timer
         XCTimer rtimer;
         timer += ticks;
-        if ((timer - getTime())<10) return timer;
-        return rtimer.getLocal().waitAfter(timer); }
+        if ((timer - getTime())<10) return 0;
+        //return non zero value
+        return 1 | rtimer.getLocal().waitAfter(timer); }
 };
 
 #if defined(XC_REPORT_RESOURCES) && (XC_REPORT_RESOURCES == 1)
@@ -1225,6 +1234,21 @@ private:
             lockRx.release();
         }
         return false;
+    }
+
+    // acquire the rx lock and wait if any token received corresponding to the given port
+    void inPort(unsigned ct) {
+        while(1) {
+            if (lockRx.tryAcquire()) {
+                if (testPort()) {
+                    if (lastPort == ct) {
+                        portReceived = false;
+                        return ;  //lock kept acquired
+                    }
+                }
+                lockRx.release();
+            }
+        }
     }
 
     //execute a checkCTEND and release the Rx lock for the chanend
