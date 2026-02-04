@@ -15,7 +15,7 @@ lib_xcpp: using xmos with cpp programs
 Overview
 ********
 
-ss
+This is the main C++ library for NAX1
 
 ********
 Features
