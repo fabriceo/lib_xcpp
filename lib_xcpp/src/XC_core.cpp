@@ -32,7 +32,7 @@ namespace XC {
     }
 
     //software lock is used to protect this code from simultaneous multi core attempt
-    XCSWLock getTime64Lock;
+    //XCSWLock getTime64Lock;
     //this will store the latest 64 bit time computed
     volatile LongLong_t getTime64Ticks;
 
@@ -167,6 +167,7 @@ asm (
     "\n	.type	XC_USE_TIMER,@function"
     "\n	.cc_top XC_USE_TIMER.function,XC_USE_TIMER"
     "\nXC_USE_TIMER: retsp 0"
+    "\nXC_USE_TIMER_END:"
     "\n	.cc_bottom XC_USE_TIMER.function"
     "\n	.set	XC_USE_TIMER.nstackwords,0"
     "\n	.globl	XC_USE_TIMER.nstackwords"
@@ -176,7 +177,6 @@ asm (
     "\n	.globl	XC_USE_TIMER.maxtimers"
     "\n	.set	XC_USE_TIMER.maxchanends,0"
     "\n	.globl	XC_USE_TIMER.maxchanends"
-    "\nXC_USE_TIMER_END:"
     "\n	.size	XC_USE_TIMER, XC_USE_TIMER_END-XC_USE_TIMER"
     "\n"
     "\n	.globl	XC_USE_CHANEND"
@@ -184,6 +184,7 @@ asm (
     "\n	.type	XC_USE_CHANEND,@function"
     "\n	.cc_top XC_USE_CHANEND.function,XC_USE_CHANEND"
     "\nXC_USE_CHANEND: retsp 0"
+    "\nXC_USE_CHANEND_END:"
     "\n	.cc_bottom XC_USE_CHANEND.function"
     "\n	.set	XC_USE_CHANEND.nstackwords,0"
     "\n	.globl	XC_USE_CHANEND.nstackwords"
@@ -193,7 +194,6 @@ asm (
     "\n	.globl	XC_USE_CHANEND.maxtimers"
     "\n	.set	XC_USE_CHANEND.maxchanends,1"
     "\n	.globl	XC_USE_CHANEND.maxchanends"
-    "\nXC_USE_CHANEND_END:"
     "\n	.size	XC_USE_CHANEND, XC_USE_CHANEND_END-XC_USE_CHANEND"
     "\n"
 );

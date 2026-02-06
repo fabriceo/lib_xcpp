@@ -44,8 +44,9 @@ typedef struct XCStask_s {
 /* 1 */    unsigned       pc;      //adress of the task entrypoint, set during initialization, then always 0
 /* 2 */    unsigned       param;   //value of the 32bit param given at task entry in r0
 /* 3 */    char * XCS_UNSAFE name; //name of the task given at task entry in r1
-/* 4 */    struct XCStask_s* XCS_UNSAFE next;
-/* 5 */    struct XCStask_s* XCS_UNSAFE prev;
+/* 4 */    struct XCStask_s* XCS_UNSAFE next;   //point on next task in queue
+/* 5 */    struct XCStask_s* XCS_UNSAFE prev;   //point on previous task in que
+/* 6 */    int timeAfter;          //contains a time after current time when the scheduler should come back
 } XCStask_t;
 typedef XCStask_t * XCS_UNSAFE XCStaskPtr_t;
 
@@ -98,7 +99,9 @@ XCStaskPtr_t XCSchedulerYieldChanend(unsigned ch);
 // typical usage for doing something during 100us would be:
 // int time = XCS_SET_TIME(10000); do  something(); while  ( ! XCS_END_TIME(time) );
 static inline int XCS_GET_TIME()            { int time; asm volatile("gettime %0":"=r"(time)); return time; }
+//return time in the future by adding the given value to internal xcore timer
 static inline int XCS_SET_TIME(const int x) { int time = XCS_GET_TIME() + x; return time; }
+//return true if current time is after the given value
 static inline int XCS_END_TIME(const int t) { int time = XCS_GET_TIME() - t; return ( time >= 0 ); }
 
 //test presence of a token or data in a given channel, non blocking code
@@ -131,7 +134,7 @@ static inline unsigned XCStestChanend( chanend ch ) { unsafe { return XCStestCha
 extern "C" {
 #endif
 
-//prototypes voluntary not available for XC programs
+//prototypes voluntary not available for .XC programs, par { } shall be used instead
 //create a task TCB, and allocate a stack. to be used inside a xcore thread
 XCStaskPtr_t XCSchedulerCreateTCB_(const unsigned taskAddress, const unsigned stackSize, const unsigned name, const unsigned param);
 
@@ -158,10 +161,8 @@ XCStaskPtr_t XCSchedulerCreateTCB_(const unsigned taskAddress, const unsigned st
 	#define _name 3
 	#define _next 4
 	#define _prev 5
-
-	//offset for type XCSthread_t
-	#define _current 0
-	#define _main 1
+  #define _timeAfter 6
+  #define _tcbsize 7
 
 #endif //__ASSEMBLER__
 

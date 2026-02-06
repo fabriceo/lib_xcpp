@@ -394,6 +394,7 @@ public:
     }
     //initialize shadow registers if any
     void init() {
+        regSize = 0; pregs = nullptr; return;
         if (regSize && (pregs == nullptr)) {
             pregs = (char*)malloc(regSize);
             if (pregs == nullptr) regSize = 0; //potential problem (never expected)

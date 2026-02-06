@@ -20,85 +20,89 @@
 
 XCSchedulerYield:
 
-	ENTSP_lu6 0						//do not extend stack yet (provide faster return)
-
+	ENTSP_lu6	STACKWORDS			//extend stack to save register and store return adress (lr) in SP[0]
 	get  r11, id					//get_logic_core_id()
-	shl  r0, r11, 3					//multiply by 8 as threadArray contains 2 words
 	ldaw r1, dp[ threadArray ]
-	add  r1, r1, r0
-	ldw  r0,r1[_current]			//check if there is at least one task in the list
-	bt   r0,XCSchedulerYield_		//jump if there is one task
-	retsp 0							//nothing to do, no tasks in list, return value 0
+	ldw  r2,r1[r11]					//check if there is at least one task in the list
+	bt   r2,XCSchedulerYield_entry	//jump if there is one task in the list
+	retsp STACKWORDS
+//WIP : treat timer
+	gettime r3
+	bf   r0, .L_quickExist
+	add  r3,r3,r0
+	ldaw r0, dp[ __timers]
+	ldw  r1,r0[r11]
+	bt   r1, .L_saveTimer
+	getr r1,2
+.L_saveTimer:
+	stw r1,r0[r11]
+	setc res[r1], 9					//cond after
+	setd res[r1],r3
+	in r3, res[r1]
+	stw r3,r2[_timeAfter]
+.L_quickExist:
+	retsp STACKWORDS
 
 	.align	16
-XCSchedulerYield_:
-	ENTSP_lu6	STACKWORDS			//extend stack to save register and store return adress (lr) in SP[0]
+XCSchedulerYield_entry:
 
 	std  r5, r4, sp[1]				//save all registrs r4..r10, full context, not only those used here!
 	std  r7, r6, sp[2]
-	add  thread,r1, 0				//reload pipeline to avoid fetch no op
+	ldaw thread,r1[r11]
 	stw  r10,    sp[4*2]
 	std  r9, r8, sp[3]
-
-	ldaw r0, sp[0]					//load actual stack pointer
-	ldd maintask,current,thread[0]	//double load context <- current (lo), maintask(hi)
-	stw	r0, current[_sp]			//save it in actual task context
-
-.L_yieldNext:
+	add  current,r2,0
 
 #if defined(XC_SCHEDULER_ROBIN_MODE) && (XC_SCHEDULER_ROBIN_MODE==0)
+
+	ldaw maintask, dp[ mainTcbArray ]
+	ldc r0, _tcbsize
+	mul r0,r11,r0
+	ldaw maintask,maintask[r0]
+
 	ldc	 r1, 1
 	and  r0, current, r1			//check if we come from a forced main task (flag in bit0)
 	bt	 r0, .L_from_forced_main
 
 	eq	 r0, current, maintask		//no, but check if we already come from a main task
-	bt	 r0, .L_normal				//then continue with normal steps
+	bt	 r0, .L_next				//then continue with normal steps
 
 	ldw	 r0, current[_next]			//no, but check if next task is main
 	eq	 r0, r0, maintask
-	bt	 r0, .L_normal				//if so, continue to next task as normal
+	bt	 r0, .L_next				//if so, continue to next task as normal
 
 	//we come from a task which is not main for sure, so lets return to main
+	ldaw r0, sp[0]					//get actual stack pointer
+	stw	 r0, current[_sp]			//save it in actual task context //TODO check if bit0 == 1
+
 	or	 r0, current, r1			//lets force going into the main task 
-	stw	 r0, thread[_current]		//comit
+	stw	 r0, thread[0]		//comit
+
 	mov	 current, maintask
 	bu	 .L_move_to_current
 
 .L_from_forced_main:
 	mov	 context, maintask
 	andnot current, r1				//clear flag (bit0) and continue as normal behaviour
+	ldaw r0, sp[0]					//get actual stack pointer
+	stw	 r0, current[_sp]			//save it in actual task context //TODO check if bit0 == 1
 //  end of this specific task handling
 #endif
 
-.L_normal:
+.L_next:
+	ldaw r0, sp[0]					//get actual stack pointer
+	stw	 r0, current[_sp]			//save it in actual task context //TODO check if bit0 == 1
+
 	ldw  current, current[_next]	//move to next one : current = current->next
-	bu   .L_test_sp
+	eq   r0,current,r2				//r2 contains orriginal "current"
+	bf   r0, .L_commit_next
+//for sure we are in the main task and there are no more task in list
+	ldc  r0, 0
+	stw  r0, thread[0]				//clean up for next yield 
+	bu	 .L_return					//no need to restore SP
 
-.L_task_delete:						//move current to next task and free allocated memory
-	ldw  r1, current[_next]			//r1 = current->next
-	ldw  r0, current[_prev]			//r0 = current->prev
-
-	stw  r1, r0[_next]				//current->prev->next = r1 = current->next
-	stw  r0, r1[_prev]				//current->next->prev = r0 = current->prev
-
-	mov	 r0, current				//prepare register for pointer deallocation
-	mov  current, r1				//move to next one : current = r1 = current->next
-
-	bl   free						//deallocate r0
-
-	ldw r0,maintask[_prev]			//check if there are still some tasks in the queue
-	eq  r0,r0,maintask
-	bf r0,.L_test_sp				//jump if yes
-
-	ldc current,0					//no more tasks : clear current
-	stw current,thread[_current]	
-	bu .L_return					// obviously we are in the main one : just return !
-
-.L_test_sp:							//check if next task is flagged for deletion (_SP == 0)
-	ldw	r0, current[_sp]			//load current->sp
-	bf	r0, .L_task_delete			//jump to remove-deallocate
-
-	stw  current, thread[_current]	//commit next task: thread->current = current
+.L_commit_next:
+	stw  current, thread[0]			//commit next task: thread->current = current
 
 .L_move_to_current:
 
@@ -117,23 +121,31 @@ XCSchedulerYield_:
 
 	bla	r3							//indirect call to task adress for the first time
 	
-	//back here ONLY when task is reaching end
-	ldc	r0, 0						//we limit operation here as we dont know what stack size permit
-	stw	r0, current[_sp]			//clear current->sp to flag it for further deletion
+//back here ONLY when task is finished!
+//remove task from the list
+	ldw  r1, current[_next]			//r1 = current->next
+	ldw  r0, current[_prev]			//r0 = current->prev
 
-	bu  .L_yieldNext				//move to next one
-	ldw	current, thread[_main]		//move to main task, as next one might be also marked for deletion...
-	stw	current, thread[_current]	//commit : thread->current = current = thread->main
+	stw  r1, r0[_next]				//current->prev->next = r1 = current->next
+	stw  r0, r1[_prev]				//current->next->prev = r0 = current->prev
+
+	mov	 r0, current				//prepare register for pointer deallocation
+	mov  current, r1				//move to next one : current = r1 = current->next
+
+	bl   free						//deallocate r0
+
+	stw current, thread[0]			//commit next one (maybe main)
 
 .L_yieldToNext:
 	ldw	r0, current[_sp]			//load target task stack pointer for this task
 	set	sp, r0						//set stack pointer to current->sp
 
+	mov	r0, current					//this will give back the current tcb
+
 .L_return:
 
 	ldw	r10,    sp[4*2]
 	ldd	r9, r8, sp[3]
-	mov	r0, current					//this will give back the current tcb
 	ldd	r7, r6, sp[2]
 	ldd r5, r4, sp[1]
 	retsp STACKWORDS

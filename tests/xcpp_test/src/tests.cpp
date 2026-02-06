@@ -108,6 +108,7 @@ extern "C" void blinkLedCooperative(int n) {
 
 
 void testScheduler() {
+    while(1) {
     PLEDS.setMode(XCPort::OUTPUT_DRIVE, 0);
     XCSchedulerCreateTaskParam(blinkLedCooperative,0);
     XCSchedulerCreateTaskParam(blinkLedCooperative,1);
@@ -118,17 +119,67 @@ void testScheduler() {
     }
     PLEDS.clr();
     debug_printf("finished ALL\n");
+    }
 }
 
-void printtus(int n) {
 
-    XCTimerMicros tus;
-    int t = 5+XC::getTime();
-    tus.clr();
-    debug_printf("%d tus1 = %d, tus2 = %d, sub = %d, tus = %d, t = %d\n",n,XCtimeStart1,XCtimeStart2,XCtimeStart2-XCtimeStart1,(unsigned)tus.get(),12+t);
+//CRTP concept devlopment
+
+template < typename Child >
+class xportbase { 
+private:    
+    xportbase() { asm volatile("# xportbase()"); }
+    friend Child;
+public: 
+    volatile unsigned addr;
+    Child& self() { return static_cast<Child&>(*this); }
+    xportbase(unsigned addr_) { asm volatile("# xportbase(addr)"); addr = addr_; }
+
+    //expected to exist in child class
+    unsigned getVal();
+    Child& setVal(unsigned v);
+
+    Child& out(unsigned v) { asm volatile("# xportbase::out"); this->self().setVal(v); return this->self() ; }
+    Child& clr()   { asm volatile("# xportbase::clr"); this->self().setVal(0); return this->self(); }
+    unsigned in()  { asm volatile("# xportbase::in"); return this->self().getVal(); }
+
+};
+
+
+class xport : public xportbase< xport > { public:
+volatile unsigned val;
+
+    xport() { asm volatile("# xport()");}
+    xport(unsigned addr_) : xportbase(addr_) { asm volatile("# xport(addr)"); }  
+
+    unsigned getVal() { return val; }
+    xport& setVal(unsigned v) { val = v; return *this;}
+
+    xport& clr() { asm volatile("# xport::clr"); val=2; return *this; }
+  
+};
+
+class xport2 : public xportbase< xport2 > { public:
+volatile unsigned val;
+
+    xport2() { asm volatile("# xport2()");}
+    xport2(unsigned addr_) : xportbase(addr_) { asm volatile("# xport2(addr)"); }  
+    
+    xport2& clr() { asm volatile("# xport2::clr"); val=2; return *this; }
+  
+};
+
+void tesst() {
+    xport t(100);
+    t.clr().out(3);
+    unsigned x = t.in();
+    debug_printf("t.addr = %d, x = %d\n",t.addr,x);
+    xport2 u(10);
+    u.clr();//.out(4);
 }
+
 
 extern "C" void tile0_task1() { testScheduler(); };
 extern "C" void tile0_task2() { };
-extern "C" void tile1_task1() {  };
+extern "C" void tile1_task1() { };
 extern "C" void tile1_task2() {  };

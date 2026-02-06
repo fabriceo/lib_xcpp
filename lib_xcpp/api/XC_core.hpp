@@ -123,8 +123,8 @@ namespace XC {
 
   //token used to communicate across tiles between client and server. Experimental
   typedef enum {
-        PORT_SERVER = 0x40, PORT_CLIENT = 0x41,
-        I2C_SERVER  = 0x50, I2C_CLIENT  = 0x51,
+        PORT_SERVER = 0x40, PORT_CLIENT = 0x41, //used for communicating across core/tile between Port client/server
+        I2C_SERVER  = 0x50, I2C_CLIENT  = 0x51, //used for communicating across core/tile between I2C client/server
   } PortClientServer_t;
 };
 
@@ -365,7 +365,7 @@ public:
 namespace XC {
 
     //software lock is used to protect this code from simultaneous multi core attempt
-    extern XCSWLock getTime64Lock;
+    //NONEED extern XCSWLock getTime64Lock;
     //this will store the latest 64 bit time computed
     extern volatile LongLong_t getTime64Ticks;
 
@@ -373,9 +373,9 @@ namespace XC {
     //needs to be called from any core at least every 10 seconds otherwise will loose 31bit overflow
     //this needs to be called at least every 10 seconds otherwise will loose 31bit overflow
     //return 64 bits value representing more than 5000 years so will never rollout (always positive)
-    inline long long getTime64() { 
+    inline long long getTime64() { asm volatile("### getTime64()");
         
-        getTime64Lock.acquire();
+        //getTime64Lock.acquire();
         //load time in intermediate registers with 64bits LDD instruction
         LongLong_t previous = { .ll = getTime64Ticks.ll };
         //maccu used as a single instruction to perform 64 bits addition of elapsed time
@@ -383,7 +383,7 @@ namespace XC {
         maccu(&previous.ull,elapsed,1);
         //store 64bit result in a single STD instruction
         getTime64Ticks.ll = previous.ull;
-        getTime64Lock.release();
+        //getTime64Lock.release();
         return previous.ll;
     }
 
@@ -1151,17 +1151,17 @@ While (1) {
 */
 
 /*
-use this agreagated class to use a channel across multiple origin and multiple dest
-a driver should listen a "port" value (any control token between 0x04 and 0x7F)
-a return adress can be sent after the port control token to send answer to the sender
-locks are managed to protect the chanend until CT_END is sent
+use this agreagated class to use a channel across multiple origin and multiple dest.
+A driver should listen a "port" value (any control token between 0x04 and 0x7F)
+A return adress might be sent after the port control token when an answer is required.
+Locks are managed to protect the chanend access until CT_END is sent
 */
 class XCChanendPort : public XCChanend {
 private:
-    XCSWLock lockTx;
-    XCSWLock lockRx;
+    XCSWLock lockTx;    //protect for tranmission
+    XCSWLock lockRx;    //protect for reception
     volatile unsigned portReceived;   //true when a contol token has been extracted from the chanend
-    unsigned lastPort;                //pending value of this control token
+    volatile unsigned portValue;       //pending value of this control token
 
 public:
     XCChanendPort() : XCChanend(), portReceived(0)  {}
@@ -1177,6 +1177,7 @@ public:
     XCChanendPort& outAddr()                    { out(addr);             return *this; }
     XCChanendPort& outTime()                    { out(XC::getTime());    return *this; }
     XCChanendPort& checkCT(const char ct)       { XCChanend::checkCT(ct);  return *this; }
+    XCChanendPort& checkCT(const XC::CTValue_t ct) { XCChanend::checkCT(ct);  return *this; }
     XCChanendPort& checkCTi(const char ct)      { XCChanend::checkCTi(ct); return *this; }
     XCChanendPort& outCT_START()                { return outCTi(XC::CT_START); }
     XCChanendPort& outCT_END()                  { return outCTi(XC::CT_END);   }
@@ -1188,19 +1189,7 @@ public:
     XCChanendPort& checkCT_ACK()                { return checkCTi(XC::CT_ACK);   }
     XCChanendPort& checkCT_NACK()               { return checkCTi(XC::CT_NACK);  }
 
-private:
-    //just check if the channel contains a token, if yes extract it in shadow memory for comparaison
-    inline unsigned testPort() {
-        if (portReceived) return true;
-        if ( (testPresence()) ) {
-            if (testCT()) {
-                lastPort = inCT();
-                return portReceived = true;
-            } 
-        }
-      return false;
-    }
-  public:
+//Sending data to a Port listener:
 
     //send a token if the channel is not locked by another sender. return true if sent.
     bool tryOutPort(unsigned ct) {
@@ -1222,13 +1211,27 @@ private:
     XCChanendPort& outPortEND() { 
         outCT_END(); lockTx.release(); return * this; }
 
+//listening a Port
+
+    //just check if the channel contains a token, if yes extract it in shadow memory for comparaison
+    inline bool testPort() {
+        if (portReceived) return true;
+        if ( (testPresence()) ) {
+            if (testCT()) {
+                portValue = inCT();
+                return portReceived = true;
+            } 
+        }
+      return false;
+    }
+
     //try acquire the rx lock and test if any token received corresponding to the given port
     bool tryInPort(unsigned ct) {
         if (lockRx.tryAcquire()) {
             if (testPort()) {
-                if (lastPort == ct) {
-                    portReceived = false;
-                    return true;  //lock kept acquired
+                if (portValue == ct) {
+                    portReceived = false;   //clear token from the shadow memory
+                    return true;            //keep lock acquired
                 }
             }
             lockRx.release();
@@ -1238,22 +1241,12 @@ private:
 
     // acquire the rx lock and wait if any token received corresponding to the given port
     void inPort(unsigned ct) {
-        while(1) {
-            if (lockRx.tryAcquire()) {
-                if (testPort()) {
-                    if (lastPort == ct) {
-                        portReceived = false;
-                        return ;  //lock kept acquired
-                    }
-                }
-                lockRx.release();
-            }
-        }
+        while (tryInPort(ct) == false) { }
     }
 
     //execute a checkCTEND and release the Rx lock for the chanend
     XCChanendPort& checkPortEND() { 
-        checkCT_END(); lockRx.release(); return * this; }
+        checkCT_END(); lockRx.release(); return *this; }
 
     //retreive token form shadow memory otherwise from chanend itself
     unsigned getPort() {
@@ -1261,7 +1254,7 @@ private:
         lockRx.acquire();
         if (portReceived) {
             portReceived = false;
-            res = lastPort;
+            res = portValue;
         } else
             res = inCT();   //assuming next token in chanend will be a port identifier
         lockRx.release();
@@ -1364,7 +1357,7 @@ inline unsigned XCPort::countClock(XCClock& clk, unsigned ticks) {
     return ts2;
 }
 
-//used to manage remote port access
+//used to manage remote GPIO port access
 class XCPortRemote {
     unsigned addr;
     unsigned val;
