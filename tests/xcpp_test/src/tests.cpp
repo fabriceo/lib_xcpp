@@ -179,7 +179,24 @@ void tesst() {
 }
 
 
+
+char * cmdbuf;
+unsigned cmdsize;
+
+extern "C" int _get_cmdline(void *buf, unsigned size) {
+    //new code here
+    cmdbuf = (char *)buf;
+    cmdsize = size;
+    return -1;
+}
+
+
+void testcmdline() {
+    debug_printf("%d,%s\n",cmdsize,cmdbuf);
+}
+
+
 extern "C" void tile0_task1() { testScheduler(); };
-extern "C" void tile0_task2() { };
+extern "C" void tile0_task2() { testcmdline();};
 extern "C" void tile1_task1() { };
 extern "C" void tile1_task2() {  };

@@ -66,6 +66,44 @@
 #warning missing -std=c++11 in compiler options
 #endif
 
+
+//this XCTrace class is used to verify the I2C class with fast printing signal
+//if debug_printf is not defined then the compiler should remove unutilized code
+template<int size = 256> class XCTrace {
+private:
+static_assert(size>=2,"invalid size for XCTrace< >");
+    char trace[size];
+    int  count;
+
+public:
+    bool printOn;
+    XCTrace() : printOn(false) { traceClear(); }
+    void traceClear() { 
+        count = 0; trace[0] = '\n'; trace[1] = 0; }
+    void tracePut(char ch) {
+        if (count < (size-2)) { 
+            trace[count++]=ch; 
+            trace[count]='\n'; 
+            trace[count+1]=0; } }
+    void tracePutHex(char ch) {
+        if (count < (size-3)) { 
+            trace[count++]=(ch>>4)+(((ch>>4)<10)?'0':'A'-10); 
+            trace[count++]=(ch&15)+(((ch&15)<10)?'0':'A'-10); 
+            trace[count]='\n'; 
+            trace[count+1]=0; } }
+    void tracePrint() { 
+        if (printOn) debug_printf(trace); 
+        if (size>2) traceClear(); }
+};
+
+#ifndef XCTraceSize
+#if defined(debug_printf)
+#define XCTraceSize 256
+#else
+#define XCTraceSize 2
+#endif
+#endif
+
 namespace XC {
 //some basic types used in XC classes
 
@@ -329,8 +367,13 @@ namespace XC {
       return res;
   }
 
-};
+  inline void crc32(unsigned int &crc, unsigned data, unsigned poly) { 
+    unsigned crcin = crc; unsigned int crcout;
+    asm volatile("crc32 %0,%1,%2":"=r"(crcout):"r"(data),"r"(poly),"0"(crcin));
+    crc = crcout;
+  }
 
+};
 
 //cpp version of the xmos software lock library.
 //a lock object can be instanciated anywhere as it can be shared by multiple tasks.
@@ -375,6 +418,7 @@ namespace XC {
     //return 64 bits value representing more than 5000 years so will never rollout (always positive)
     inline long long getTime64() { asm volatile("### getTime64()");
         
+        //finally no need for lock due to very fast routine
         //getTime64Lock.acquire();
         //load time in intermediate registers with 64bits LDD instruction
         LongLong_t previous = { .ll = getTime64Ticks.ll };
@@ -413,7 +457,11 @@ namespace XC {
     //returns number of ticks within 1 second
     inline unsigned getReferenceHz() { 
         if (referenceHz) return referenceHz;
-        else return referenceHz = PLATFORM_REFERENCE_HZ; }
+    //this ifdef is just to avoid an error by Intellisense due to unseen PLATFORM_REFERENCE_HZ
+    #ifdef PLATFORM_REFERENCE_HZ
+        else return referenceHz = PLATFORM_REFERENCE_HZ; 
+    #endif
+    }
 
 };
 
@@ -1090,7 +1138,7 @@ public:
     XCChanend& checkCT_END()   { return checkCTi(XC::CT_END);   }
     XCChanend& checkCT_ACK()   { return checkCTi(XC::CT_ACK);   }
     XCChanend& checkCT_NACK()  { return checkCTi(XC::CT_NACK);  }
-    unsigned   testCT() const  { unsigned t;
+    bool   testCT() const  { unsigned t;
       asm volatile("testct %0,res[%1]":"=r"(t):"r"(addr)); return t; }
     unsigned   testCTWord() const { unsigned t;
       asm volatile("testwct %0,res[%1]":"=r"(t):"r"(addr)); return t; }
@@ -1240,8 +1288,9 @@ public:
     }
 
     // acquire the rx lock and wait if any token received corresponding to the given port
-    void inPort(unsigned ct) {
+    XCChanendPort& inPort(unsigned ct) {
         while (tryInPort(ct) == false) { }
+        return *this;
     }
 
     //execute a checkCTEND and release the Rx lock for the chanend
@@ -1259,6 +1308,21 @@ public:
             res = inCT();   //assuming next token in chanend will be a port identifier
         lockRx.release();
         return res;
+    }
+
+    XCChanendPort& flushEND() {
+        while(1) {
+            if (testCT()) {
+                char ct = inCT();
+                if (ct==XC::CT_END) {
+                    lockRx.release();
+                    return *this;
+                }
+            } else {
+                XC_UNUSED char ch = inByte();
+            }
+        }
+        return *this;
     }
 
 };

@@ -9,43 +9,6 @@
 #define DEBUG_UNIT XC_I2C
 #include "debug_print.h"
 
-//this XCTrace class is used to verify the I2C class with fast printing signal
-//if debug_printf is not defined then the compiler should remove unutilized code
-template<int size = 256> class XCTrace {
-private:
-static_assert(size>=2,"invalid size for XCTrace< >");
-    char trace[size];
-    int  count;
-
-public:
-    bool printOn;
-    XCTrace() : printOn(false) { traceClear(); }
-    void traceClear() { 
-        count = 0; trace[0] = '\n'; trace[1] = 0; }
-    void tracePut(char ch) {
-        if (count < (size-2)) { 
-            trace[count++]=ch; 
-            trace[count]='\n'; 
-            trace[count+1]=0; } }
-    void tracePutHex(char ch) {
-        if (count < (size-3)) { 
-            trace[count++]=(ch>>4)+(((ch>>4)<10)?'0':'A'-10); 
-            trace[count++]=(ch&15)+(((ch&15)<10)?'0':'A'-10); 
-            trace[count]='\n'; 
-            trace[count+1]=0; } }
-    void tracePrint() { 
-        if (printOn) debug_printf(trace); 
-        if (size>2) traceClear(); }
-};
-
-#ifndef XCTraceSize
-#if defined(debug_printf)
-#define XCTraceSize 256
-#else
-#define XCTraceSize 2
-#endif
-#endif
-
 typedef enum { NACK=0, ACK=1 } I2Cres_t;    //the device may NACK or ACK the last byte.
 
 class XC_I2Cmaster : public XCTrace< XCTraceSize > {
@@ -70,7 +33,7 @@ private:
     XCChanendPort &C;
     //list of supported request sent over the chanel from any client to the server
     typedef enum { 
-        I2C_INIT = 0, I2C_TEST_DEVICE, I2C_WRITE_REG, I2C_WRITE_REGS, I2C_READ_REG, I2C_READ_REGS 
+        I2C_INIT = 0, I2C_TEST_DEVICE, I2C_WRITE_REG, I2C_WRITE_REGS, I2C_WRITE_MULTIBYTE, I2C_READ_REG, I2C_READ_REGS 
     } I2Crequest_t;
     //temporary buffer to store bytes transfered across client-server
     char buf[BUF_SIZE];
@@ -78,6 +41,9 @@ private:
 public:
 
     XC_I2Cmaster() : clientMode(true), C(XCChanendPortUndefined) { }    //used for client mode
+
+    XC_I2Cmaster(XCChanendPort &C_) : clientMode(true), C(C_) { }       //used for client mode
+
 
     XC_I2Cmaster(XCPortBit& pinscl, XCPortBit& pinsda) : 
         scl(pinscl),sda(pinsda), clientMode(false), C(XCChanendPortUndefined) { }
@@ -90,8 +56,6 @@ public:
 
     XC_I2Cmaster(XCPort& portscl, XCPortBit& pinsda) : 
         scl(portscl), sda(pinsda), clientMode(false), C(XCChanendPortUndefined) { }
-
-    XC_I2Cmaster(XCChanendPort &C_) : clientMode(true), C(C_) { }       //used for client mode
 
 private:
     void sclHigh() { scl.set(); }
@@ -270,7 +234,7 @@ bool clientSend(I2Crequest_t request) {
 void clientEND() { 
     C.checkPortEND(); tracePut('>'); tracePrint(); }
 
-void clientWaitAnswer() { C.inPort(TO_I2C_CLIENT); }
+XCChanendPort& clientWaitAnswer() { return C.inPort(TO_I2C_CLIENT); }
 
 public:
 
@@ -279,17 +243,17 @@ void sendStopBit(void) {
     if (bus_busy) stop_bit();     //verify scl being already low   
 }
 
-unsigned stopMe() {
+bool stopMe() {
     if (lock.tryAcquire()) {
         if (bus_busy) { 
             lock.release();
-            return 1;
+            return true;
         }
         kbits_per_second = 0;
         //keep locked
-        return 0;
+        return false;
     }
-    return 1;
+    return true;
 }
 
 I2Cres_t write( unsigned device,
@@ -303,7 +267,7 @@ I2Cres_t read(  unsigned device,
  
 void measure();                
 
-void masterInit(unsigned kbitsps, bool measure_ = false);
+void masterInit( unsigned kbitsps, bool measure_ = false);
 
 I2Cres_t testDevice( unsigned device );
 
@@ -311,7 +275,7 @@ I2Cres_t writeReg( unsigned device, unsigned reg, unsigned val);
 
 I2Cres_t readReg( unsigned device, unsigned reg, unsigned &val);
 
-I2Cres_t writeMultiBytes(unsigned device, unsigned n, ...);
+I2Cres_t writeMultiBytes( unsigned device, unsigned n, ...);
 
 I2Cres_t writeRegs( unsigned device, unsigned reg, const unsigned n, const char buf[], unsigned &num_bytes_sent );
 

@@ -5,9 +5,10 @@
 
 
 I2Cres_t XC_I2Cmaster :: write( unsigned device,
-                const unsigned n, char buf[],
-                unsigned &num_bytes_sent,
-                bool send_stop_bit) {
+                                const unsigned n, char buf[],
+                                unsigned &num_bytes_sent,
+                                bool send_stop_bit ) 
+{
     if (0==kbits_per_second) return NACK;
     //debug_printf("write %d, %d bytes\n",device,n);
     start_bit();
@@ -26,8 +27,9 @@ I2Cres_t XC_I2Cmaster :: write( unsigned device,
 
 
 I2Cres_t XC_I2Cmaster :: read(  unsigned device, 
-                const unsigned m, char buf[], 
-                bool send_stop_bit) {
+                                const unsigned m, char buf[], 
+                                bool send_stop_bit) 
+{
     if (0==kbits_per_second) return NACK;
     start_bit();
     int res = tx8((device << 1) | 1);   //send address + read=1 flag
@@ -57,7 +59,7 @@ I2Cres_t XC_I2Cmaster :: read(  unsigned device,
 }
 
 
-void XC_I2Cmaster :: measure() { asm volatile("### measure()");
+void XC_I2Cmaster :: measure() { 
     //assuming all signals being high at first
     int thigh = 0;
     int tlow  = 0;
@@ -96,8 +98,8 @@ void XC_I2Cmaster :: measure() { asm volatile("### measure()");
 //very first method to call
 void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_) {
     if (clientSend(I2C_INIT)) { 
-        C.out(kbitsps/100).outPortEND();
-        clientEND();
+        C.outWord(kbitsps).outPortEND();
+        clientWaitAnswer(); clientEND();
         kbits_per_second = kbitsps;
         lock.release(); //in case it was locked
         return; 
@@ -107,8 +109,8 @@ void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_) {
     timer.getLocal();   //use a timer allocated to the current task, not a specific one.
     compute_ticks(kbitsps);
     bus_busy = 0;
-    sda.getPort().enable().setMode(XCPort::OUTPUT_PULLUP);
-    scl.getPort().enable().setMode(XCPort::OUTPUT_PULLUP);
+    sda.getPort().enable().setMode(XCPort::OUTPUT_PULLUP); sdaHigh();
+    scl.getPort().enable().setMode(XCPort::OUTPUT_PULLUP); sclHigh();
     timer.waitTicks(one_bit_ticks);
     if (measure_) measure();
 
@@ -129,6 +131,7 @@ void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_) {
 I2Cres_t XC_I2Cmaster :: testDevice( unsigned device ) {
     if (clientSend(I2C_TEST_DEVICE)) {
         C.outByte(device).outPortEND();
+        clientWaitAnswer(); 
         I2Cres_t res = (I2Cres_t)C.inByte(); 
         clientEND(); 
         return res; 
@@ -166,7 +169,8 @@ I2Cres_t XC_I2Cmaster :: readReg( unsigned device, unsigned reg, unsigned &val) 
         C.outByte(device).outByte(reg).outPortEND();
         clientWaitAnswer();
         val = C.inByte();
-        clientEND(); return ACK; 
+        clientEND(); 
+        return ACK; 
     }
     if (0==kbits_per_second) return NACK;
     lock.acquire();
@@ -259,7 +263,7 @@ I2Cres_t XC_I2Cmaster :: writeRegsList( unsigned device, unsigned reg, unsigned 
             if ((res = writeReg(device, reg+i, buf[i])) == NACK) break;
     } else {
         unsigned n;
-        I2Cres_t res = write(device,size,buf,n,true);
+        res = write(device,size,buf,n,true);
         tracePrint();
         if (n != size) res = NACK;
     }
@@ -278,7 +282,7 @@ I2Cres_t XC_I2Cmaster :: writeRegsTable( unsigned device, const char table[], bo
         char tot   = *(p++);
         if (tot == 0) { 
             res = ACK;
-            XC::delayMicros(10000*(unsigned)first);   //can be replaced by Yield
+            XC::delayMicros(1000*(unsigned)first);   //can be replaced by Yield
         } else {
             if (multi == false) {
                 for (unsigned i=0; i<tot; i++) 
@@ -301,7 +305,7 @@ bool XC_I2Cmaster :: processServer() {
         I2Crequest_t req = (I2Crequest_t)C.inByte();    //receive codified request
         switch (req) {
         case I2C_INIT : { 
-            unsigned kbps = C.in(); kbps *= 100;
+            unsigned kbps = C.in(); 
             C.checkPortEND();
             masterInit(kbps);
             C.outPort(TO_I2C_CLIENT).outPortEND();
@@ -325,6 +329,18 @@ bool XC_I2Cmaster :: processServer() {
             char reg = C.inByte();
             char num = C.inByte();
             for (int i=0; i<num; i++) buf[i] = C.inByte();
+            C.checkPortEND();
+            unsigned numByte;
+            I2Cres_t res = writeRegs(slave, reg , num, buf, numByte);
+            C.outPort(TO_I2C_CLIENT).outByte(res).outPortEND();
+            break; }
+        case I2C_WRITE_MULTIBYTE: {
+            char slave = C.inByte();
+            char reg = C.inByte();
+            char num = 0;
+            while(1) 
+                if (C.testCT()) break;
+                else buf[num++] = (char)C.inByte();
             C.checkPortEND();
             unsigned numByte;
             I2Cres_t res = writeRegs(slave, reg , num, buf, numByte);
