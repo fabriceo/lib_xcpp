@@ -337,7 +337,7 @@ bool XC_I2Cmaster :: processServer() {
         case I2C_WRITE_MULTIBYTE: {
             char slave = C.inByte();
             char reg = C.inByte();
-            char num = 0;
+            unsigned num = 0;
             while(1) 
                 if (C.testCT()) break;
                 else buf[num++] = (char)C.inByte();
