@@ -65,15 +65,13 @@ private:
     unsigned reg;       //hold up to 32bits of informations to be latched
     unsigned oldReg;    //previous value from last update
     bool needUpdate_;
-    XCTimer timer;
 public:
     //initialize the 32bits register with provided value and clear SPI_RCK line
     XCSpiLatch& init(unsigned val) { 
         reg = oldReg = val;
         needUpdate_ = true;
-        timer.getLocal();
         rck.clr();
-        timer.waitTicks(SPI.period); 
+        XC::delayTicks(SPI.period); 
         return *this; 
     }
     bool needUpdate() { return needUpdate_; }
@@ -86,8 +84,7 @@ public:
     XCSpiLatch&  setBit(T bit)   { return setMask(1UL << bit);  }
     //modify the 32bits register by setting a specific bits
     XCSpiLatch&  setBit(T bit, unsigned val)   { 
-        if (val) return setMask(1UL << bit);
-        else return clrMask(1UL << bit);  }
+        if (val) return setBit(bit); else return clrBit(bit);  }
     //modify the 32bits register by clearing some bits according to mask parameter
     XCSpiLatch&  clr() { return set(0); }
     //modify the 32bits register by clearing some bits according to mask parameter
@@ -102,17 +99,18 @@ public:
     unsigned getBit(T bit) { return (reg >> bit) & 1UL; }
     //return the value of the shadow register of a given bit
     unsigned get(T bit) { return getBit(bit); }
-    operator unsigned () const { return get(); }
     //send the value of the 32bit register on the SPI bus
     XCSpiLatch&  update() {
         SPI.transfer( reg, nbits);
         rck.set();                      //set SPI_RCKx to 1 to latch output
-        timer.waitTicks(SPI.period/2);
+        XC::delayTicks(SPI.period/2);
         rck.clr();                      //set SPI_RCKx to 0
-        timer.waitTicks(SPI.period/2);
+        XC::delayTicks(SPI.period/2);
         needUpdate_ = false; oldReg = reg;
         return *this;
     }
+    operator unsigned () const { return get(); }
+    XCSpiLatch& operator = (T rhs) { return set(rhs); }
 };
 
 

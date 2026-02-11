@@ -1208,7 +1208,7 @@ class XCChanendPort : public XCChanend {
 private:
     XCSWLock lockTx;    //protect for tranmission
     XCSWLock lockRx;    //protect for reception
-    volatile unsigned portReceived;   //true when a contol token has been extracted from the chanend
+    volatile unsigned portReceived;    //true when a contol token has been extracted from the chanend
     volatile unsigned portValue;       //pending value of this control token
 
 public:
@@ -1495,6 +1495,9 @@ extern "C" {
     void XCyield();
 
 };
+
+namespace xc = XC;
+namespace xC = XC;
 
 
 #endif //_XC_CORE_HPP_
