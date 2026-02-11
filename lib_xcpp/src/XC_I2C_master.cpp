@@ -298,8 +298,8 @@ I2Cres_t XC_I2Cmaster :: writeRegsTable( unsigned device, const char table[], bo
 }
 
 //listen tokens on the chanend and process I2C related requests
-bool XC_I2Cmaster :: processServer() {
-    if (0==kbits_per_second) return false;
+bool XC_I2Cserver :: processServer() {
+    if (0==I2C.kbits_per_second) return false;
     if (C.tryInPort(TO_I2C_SERVER)) {    //check and extract token for us otherwise do nothing
         C.setGetDest();                 //receive client adress for providing an answer
         I2Crequest_t req = (I2Crequest_t)C.inByte();    //receive codified request
@@ -307,13 +307,13 @@ bool XC_I2Cmaster :: processServer() {
         case I2C_INIT : { 
             unsigned kbps = C.in(); 
             C.checkPortEND();
-            masterInit(kbps);
+            I2C.masterInit(kbps);
             C.outPort(TO_I2C_CLIENT).outPortEND();
             break; }
         case I2C_TEST_DEVICE: {
             char slave = C.inByte();
             C.checkPortEND();
-            unsigned res = testDevice(slave);
+            unsigned res = I2C.testDevice(slave);
             C.outPort(TO_I2C_CLIENT).outByte(res).outPortEND();
             break; }
         case I2C_WRITE_REG: {
@@ -321,7 +321,7 @@ bool XC_I2Cmaster :: processServer() {
             char reg = C.inByte();
             char val = C.inByte();
             C.checkPortEND();
-            I2Cres_t res = writeReg(slave, reg , val);
+            I2Cres_t res = I2C.writeReg(slave, reg , val);
             C.outPort(TO_I2C_CLIENT).outByte(res).outPortEND();
             break; }
         case I2C_WRITE_REGS: {
@@ -331,7 +331,7 @@ bool XC_I2Cmaster :: processServer() {
             for (int i=0; i<num; i++) buf[i] = C.inByte();
             C.checkPortEND();
             unsigned numByte;
-            I2Cres_t res = writeRegs(slave, reg , num, buf, numByte);
+            I2Cres_t res = I2C.writeRegs(slave, reg , num, buf, numByte);
             C.outPort(TO_I2C_CLIENT).outByte(res).outPortEND();
             break; }
         case I2C_WRITE_MULTIBYTE: {
@@ -343,7 +343,7 @@ bool XC_I2Cmaster :: processServer() {
                 else buf[num++] = (char)C.inByte();
             C.checkPortEND();
             unsigned numByte;
-            I2Cres_t res = writeRegs(slave, reg , num, buf, numByte);
+            I2Cres_t res = I2C.writeRegs(slave, reg , num, buf, numByte);
             C.outPort(TO_I2C_CLIENT).outByte(res).outPortEND();
             break; }
         case I2C_READ_REG: {
@@ -351,7 +351,7 @@ bool XC_I2Cmaster :: processServer() {
             char reg = C.inByte();
             C.checkPortEND();
             unsigned val;
-            I2Cres_t res = readReg(slave, reg , val);
+            I2Cres_t res = I2C.readReg(slave, reg , val);
             C.outPort(TO_I2C_CLIENT).outByte(res);
             if (res == ACK) C.outByte(val);
             C.outPortEND();
@@ -363,7 +363,7 @@ bool XC_I2Cmaster :: processServer() {
             C.checkPortEND();
             buf[0] = reg;   //TODO
             for (int i=1; i<num; i++) buf[i]=255;
-            I2Cres_t res = readRegs(slave,reg,num,buf);
+            I2Cres_t res = I2C.readRegs(slave,reg,num,buf);
             C.outPort(TO_I2C_CLIENT).outByte(res);
             if (res == ACK) for (int i=0; i<num; i++) C.outByte(buf[i]);
             C.outPortEND();

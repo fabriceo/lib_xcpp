@@ -10,15 +10,19 @@
 #include "debug_print.h"
 
 typedef enum { NACK=0, ACK=1 } I2Cres_t;    //the device may NACK or ACK the last byte.
-
-class XC_I2Cmaster : public XCTrace< XCTraceSize > {
-public:
-private:
-    enum local{ 
-        BUF_SIZE  = 16,           //max number of values sent/received over channel
+typedef enum { 
         TO_I2C_SERVER = 0x40,     //unique ID for shared chanend to recognize I2C transactions
-        TO_I2C_CLIENT = 0x41 };   //unique ID for shared chanend to recognize I2C transactions
+        TO_I2C_CLIENT = 0x41      //unique ID for shared chanend to recognize I2C transactions}
+        } I2Cport_t;
+//list of supported request sent over the chanel from any client to the server
+typedef enum { 
+        I2C_INIT = 0, I2C_TEST_DEVICE, I2C_WRITE_REG, I2C_WRITE_REGS, I2C_WRITE_MULTIBYTE, I2C_READ_REG, I2C_READ_REGS 
+        } I2Crequest_t;
 
+class XC_I2Cserver;
+class XC_I2Cmaster : public XCTrace< XCTraceSize > { 
+private:
+    friend XC_I2Cserver;
     //physical pins for the I2C bus
     XCPortBit scl, sda;
     //must be initialized with getLocal or getResource before use
@@ -31,12 +35,6 @@ private:
     bool clientMode;    
     //chanend used for communcation client/server
     XCChanendPort &C;
-    //list of supported request sent over the chanel from any client to the server
-    typedef enum { 
-        I2C_INIT = 0, I2C_TEST_DEVICE, I2C_WRITE_REG, I2C_WRITE_REGS, I2C_WRITE_MULTIBYTE, I2C_READ_REG, I2C_READ_REGS 
-    } I2Crequest_t;
-    //temporary buffer to store bytes transfered across client-server
-    char buf[BUF_SIZE];
 
 public:
 
@@ -287,18 +285,26 @@ I2Cres_t writeRegsTable( unsigned device, const char table[], bool multi = false
 
 
 public:
-    void initServer() {     //prepare our channel to receive and send data.
-        if (C.addr == 0) C.getResource();
-    }
     void initClient() {     //prepare our channel to receive and send data.
         if (C.addr == 0) C.getResource();
     }
 
-//listen tokens on the chanend and process I2C related requests
-bool processServer();
+
 
 }; // class XC_I2Cmaster
 
+class XC_I2Cserver {
+    //temporary buffer to store bytes transfered across client-server
+    char buf[16];
+
+    XCChanendPort &C;
+    XC_I2Cmaster &I2C;
+
+    XC_I2Cserver(XCChanendPort &c, XC_I2Cmaster &i2c ) : C(c),I2C(i2c) {}
+
+    //listen tokens on the chanend and process I2C related requests
+    bool processServer();
+};
 
 //gives the possibility to select an access mode with this param
 //just after the device adress in constructor
