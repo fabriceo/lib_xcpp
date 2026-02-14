@@ -5,8 +5,8 @@
 #include <string.h>         //for memset
 #include <stdarg.h>         //for va_start, va_arg, va_end
 #include "XC_core.hpp"
-#undef  DEBUG_UNIT
-#define DEBUG_UNIT XC_I2C
+//#undef  DEBUG_UNIT
+//#define DEBUG_UNIT XC_I2C
 #include "debug_print.h"
 
 typedef enum { NACK=0, ACK=1 } I2Cres_t;    //the device may NACK or ACK the last byte.
@@ -29,7 +29,6 @@ private:
     XCTimer timer;
     //mutex to manage reentrant calls from other cores on same tile. not used yet
     XCSWLock lock;
-
     //used to define an I2C object being client of a remote object (over XCChanendPort)
     //compiler will optimize code to remove unused section when clientmode is false
     bool clientMode;    
@@ -55,6 +54,8 @@ public:
     XC_I2Cmaster(XCPort& portscl, XCPortBit& pinsda) : 
         scl(portscl), sda(pinsda), clientMode(false), C(XCChanendPortUndefined) { }
 
+    unsigned lastReg;
+
 private:
     void sclHigh() { scl.set(); }
     void sclLow()  { scl.clr(); }
@@ -72,7 +73,7 @@ private:
     unsigned sclHigh_min_ticks;      // store the minimum time for a valid signal
     unsigned bus_off_ticks;          // minimum time required before considering bus free
     volatile unsigned bus_busy;      // set to 1 when a a start bit is sent, reset to 0 when stop bit is sent
-
+    
     //wait timer to reach a target value, unless time already passed. return actual time;
     inline int waitTarget(int target) {
         int time = XC::getTime();

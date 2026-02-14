@@ -1,5 +1,5 @@
 
-#define DEBUG_UNIT XC_I2C
+//#define DEBUG_UNIT XC_I2C
 #include "debug_print.h"
 #include "XC_I2C_master.hpp"
 
@@ -12,12 +12,15 @@ I2Cres_t XC_I2Cmaster :: write( unsigned device,
     if (0==kbits_per_second) return NACK;
     //debug_printf("write %d, %d bytes\n",device,n);
     start_bit();
+    lastReg = 0;
     int res;
     res = tx8((device << 1) | 0); //aka "write=0"
     int j = 0;
+    lastReg = buf[0];
     for (; j < n; j++) {
       if (res != 0) break; // break if not Acknowledged ?
       res = tx8(buf[j]);
+      lastReg++;
     }
     if (send_stop_bit) stop_bit();
     num_bytes_sent = j;
@@ -76,6 +79,7 @@ void XC_I2Cmaster :: measure() {
         timer.waitTicks(half_bit_ticks);
     }
     debug_printf("time scl rise = %dns, t scl fall = %dns\n",thigh,tlow);
+
     thigh = 0;
     tlow  = 0;
     for (int i=0; i< 10; i++) {
@@ -104,11 +108,12 @@ void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_) {
         lock.release(); //in case it was locked
         return; 
     }
-    printOn = measure_;
+    //printOn = measure_;
     debug_printf("XC_I2C_masterInit(%dkbps)\n",kbitsps);
     timer.getLocal();   //use a timer allocated to the current task, not a specific one.
     compute_ticks(kbitsps);
     bus_busy = 0;
+    lastReg = 0;
     sda.getPort().enable().setMode(XCPort::OUTPUT_PULLUP); sdaHigh();
     scl.getPort().enable().setMode(XCPort::OUTPUT_PULLUP); sclHigh();
     timer.waitTicks(one_bit_ticks);
@@ -258,12 +263,14 @@ I2Cres_t XC_I2Cmaster :: readRegs( unsigned device, unsigned reg, const unsigned
 
 I2Cres_t XC_I2Cmaster :: writeRegsList( unsigned device, unsigned reg, unsigned size, char buf[], bool multi) {
     I2Cres_t res = ACK;
-    if (multi == false) {
+   if (multi == false) 
+    {
         for (int i=0; i<size; i++) 
             if ((res = writeReg(device, reg+i, buf[i])) == NACK) break;
-    } else {
+    } 
+    else {
         unsigned n;
-        res = write(device,size,buf,n,true);
+        res = writeRegs(device,reg,size,buf,n);
         tracePrint();
         if (n != size) res = NACK;
     }
@@ -278,17 +285,29 @@ I2Cres_t XC_I2Cmaster :: writeRegsTable( unsigned device, const char table[], bo
     const char *p = table;
     I2Cres_t res = ACK;
     while(*p) {
-        char first = *(p++);
         char tot   = *(p++);
-        if (tot == 0) { 
+        char first = *(p++);
+        #if 0
+        if (first == 0) { 
             res = ACK;
-            XC::delayMicros(1000*(unsigned)first);   //can be replaced by Yield
-        } else {
+            XC::delayMicros(1000*(unsigned)tot);   //can be replaced by Yield
+        } else 
+        #endif
+        {
             if (multi == false) {
                 for (unsigned i=0; i<tot; i++) 
                     if ((res = writeReg( device, first+i,  p[i] )) == NACK) break;
             } else {
-                res = writeRegsList( device, first,tot,(char*)p);
+                p--;
+                printf("reg %3d: ",p[0]);
+                for (int i=0; i<(tot); i++) printf("%x, ",p[i+1]);
+                printf("\n");
+                unsigned n;
+                res = write(device, tot+1,(char*)p,n,true);
+                if (n != (tot+1)) res = NACK;
+                p++;
+                //res = writeRegsList( device, first, tot,(char*)p);
+
             }
         }
         p += tot;
