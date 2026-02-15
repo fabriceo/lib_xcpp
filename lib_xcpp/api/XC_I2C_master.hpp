@@ -197,7 +197,7 @@ private:
         sclHigh();
         timer.waitTicks(half_bit_ticks);
         sdaHigh();
-        tracePut('P'); tracePut(' ');
+        tracePut('P'); tracePut('\n');
         timer.waitTicks(bus_off_ticks);
         bus_busy = 0;
     }
@@ -206,6 +206,7 @@ private:
      *  that value.
      */
     int tx8(unsigned data) {
+        unsigned val=data;
         // Data is transmitted MSB first
         asm("bitrev %0,%0 ; byterev %0,%0":"=r"(data):"0"(data));
         //scl is expected to be low from startbit sequence or previous transmission
@@ -213,9 +214,11 @@ private:
             sda_time = timer.waitAfter(sclLow_time + quarter_bit_ticks);
             sda.set(data & 1);
             data >>= 1;
-            high_pulse((bus_busy==1) && (i == 1));  //parameter will give possibility to print "r" or "w" instead of last bit
+            bool last=(bus_busy==1) && (i == 1);
+            high_pulse(last);  //parameter will give possibility to print "r" or "w" instead of last bit
         }
         int res = high_pulse_sample(1); //get ACK or not ACK result
+        tracePutHex(val);
         bus_busy++;
         tracePut(' ');
         return res;

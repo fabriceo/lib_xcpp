@@ -53,6 +53,7 @@ I2Cres_t XC_I2Cmaster :: read(  unsigned device,
 
         timer.waitAfter(sclLow_time + sclLow_min_ticks);
         high_pulse(1);
+        tracePutHex(data);
         sdaHigh();
         tracePut(' ');
     }
@@ -64,6 +65,7 @@ I2Cres_t XC_I2Cmaster :: read(  unsigned device,
 
 void XC_I2Cmaster :: measure() { 
     //assuming all signals being high at first
+    return;
     int thigh = 0;
     int tlow  = 0;
     for (int i=0; i< 10; i++) {
@@ -108,7 +110,7 @@ void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_) {
         lock.release(); //in case it was locked
         return; 
     }
-    //printOn = measure_;
+    printOn = measure_;
     debug_printf("XC_I2C_masterInit(%dkbps)\n",kbitsps);
     timer.getLocal();   //use a timer allocated to the current task, not a specific one.
     compute_ticks(kbitsps);
@@ -306,8 +308,7 @@ I2Cres_t XC_I2Cmaster :: writeRegsTable( unsigned device, const char table[], bo
                 res = write(device, tot+1,(char*)p,n,true);
                 if (n != (tot+1)) res = NACK;
                 p++;
-                //res = writeRegsList( device, first, tot,(char*)p);
-
+                tracePrint();
             }
         }
         p += tot;
