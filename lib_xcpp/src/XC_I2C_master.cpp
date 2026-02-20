@@ -102,7 +102,7 @@ void XC_I2Cmaster :: measure() {
 
 
 //very first method to call
-void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_) {
+void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_, unsigned printOn_) {
     if (clientSend(I2C_INIT)) { 
         C.outWord(kbitsps).outPortEND();
         clientWaitAnswer(); clientEND();
@@ -110,7 +110,7 @@ void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_) {
         lock.release(); //in case it was locked
         return; 
     }
-    printOn = measure_;
+    printOn = printOn_;
     debug_printf("XC_I2C_masterInit(%dkbps)\n",kbitsps);
     timer.getLocal();   //use a timer allocated to the current task, not a specific one.
     compute_ticks(kbitsps);
@@ -297,13 +297,18 @@ I2Cres_t XC_I2Cmaster :: writeRegsTable( unsigned device, const char table[], bo
         #endif
         {
             if (multi == false) {
-                for (unsigned i=0; i<tot; i++) 
+                for (unsigned i=0; i<tot; i++) {
                     if ((res = writeReg( device, first+i,  p[i] )) == NACK) break;
+                    if (printOn>=1)  d_printf("reg %3d: %2X\n",first+i,p[i]);
+                }
+
             } else {
                 p--;
-                printf("reg %3d: ",p[0]);
-                for (int i=0; i<(tot); i++) printf("%x, ",p[i+1]);
-                printf("\n");
+                if (printOn>=1) {
+                    d_printf("reg %3d: ",p[0]);
+                    for (int i=0; i<(tot); i++) d_printf("%2X, ",p[i+1]);
+                    d_printf("\n");
+                }
                 unsigned n;
                 res = write(device, tot+1,(char*)p,n,true);
                 if (n != (tot+1)) res = NACK;

@@ -88,7 +88,7 @@ public:
             if (n>10) return I2C_DEVICE_NOTTESTED;    //timeout
         }
         status = I2C_DEVICE_EXIST;
-        dprintf("TLV exist\n");
+        debug_printf("TLV exist\n");
         page = 1; 
         I2Cres_t res = writePage( 0);
         //writeReg(1,1); //sw reset
@@ -97,16 +97,16 @@ public:
         unsigned val;
         res = I2C.readReg( addr, AIC3204_NDAC, val);
         if (val != 1) {
-            dprintf("TLV bad value for NDAC register = %d vs 1\n",val);
+            debug_printf("TLV bad value for NDAC register = %d vs 1\n",val);
             status = I2C_DEVICE_NOTMATCH;
         } else {
-            dprintf("TLV recognized\n");
+            debug_printf("TLV recognized\n");
             status = I2C_DEVICE_MATCH;
             if (init_evk_codec()) {
-                dprintf("TLV initialised\n");
+                debug_printf("TLV initialised\n");
                 status = I2C_DEVICE_INITIALISED;
             } else {
-                dprintf("TLV I2C ERROR\n"); // could retry ?
+                debug_printf("TLV I2C ERROR\n"); // could retry ?
                 status = I2C_DEVICE_ERROR ;
             }
         }

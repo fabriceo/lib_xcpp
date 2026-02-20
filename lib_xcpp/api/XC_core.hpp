@@ -76,8 +76,8 @@ static_assert(size>=2,"invalid size for XCTrace< >");
     int  count;
 
 public:
-    bool printOn;
-    XCTrace() : printOn(false) { traceClear(); }
+    unsigned printOn;
+    XCTrace() : printOn(0) { traceClear(); }
     void traceClear() { 
         count = 0; trace[0] = '\n'; trace[1] = 0; }
     void tracePut(char ch) {
@@ -92,7 +92,7 @@ public:
             trace[count]='\n'; 
             trace[count+1]=0; } }
     void tracePrint() { 
-        if (printOn) debug_printf(trace); 
+        if (printOn>=3) debug_printf(trace); 
         if (size>2) traceClear(); }
 };
 

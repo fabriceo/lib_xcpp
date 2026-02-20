@@ -245,7 +245,8 @@ void sendStopBit(void) {
     if (bus_busy) stop_bit();     //verify scl being already low   
 }
 
-bool stopMe() {
+bool tryStopMe() {
+    if(kbits_per_second==0) return true;
     if (lock.tryAcquire()) {
         if (bus_busy) { 
             lock.release();
@@ -269,7 +270,7 @@ I2Cres_t read(  unsigned device,
  
 void measure();                
 
-void masterInit( unsigned kbitsps, bool measure_ = false);
+void masterInit( unsigned kbitsps, bool measure_ = false, unsigned printOn_ = 0);
 
 I2Cres_t testDevice( unsigned device );
 

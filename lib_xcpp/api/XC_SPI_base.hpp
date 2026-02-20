@@ -75,7 +75,7 @@ public:
         return *this; 
     }
     bool needUpdate() { return needUpdate_; }
-    XCSpiLatch& checkUpdate() { needUpdate_ = (reg != oldReg); return *this; }  
+    XCSpiLatch& checkUpdate() { needUpdate_ = (reg ^ oldReg); return *this; }  
     //modify the 32bits register by setting some bits according to mask parameter
     XCSpiLatch&  set(unsigned val)      { reg = val; return *this; }
     //modify the 32bits register by setting some bits according to mask parameter
