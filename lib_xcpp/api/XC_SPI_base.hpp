@@ -82,6 +82,13 @@ public:
     XCSpiLatch&  setMask(unsigned mask) { return set( reg | mask); }
     //modify the 32bits register by setting a specific bits
     XCSpiLatch&  setBit(T bit)   { return setMask(1UL << bit);  }
+    XCSpiLatch&  setBit(T b0, T b1)   { return setBit(b0).setBit(b1);  }
+    XCSpiLatch&  setBit(T b0, T b1, T b2)   { return setBit(b0,b1).setBit(b2);  }
+    XCSpiLatch&  setBit(T b0, T b1, T b2, T b3)   { return setBit(b0,b1,b2).setBit(b3);  }
+    XCSpiLatch&  setBit(T b0, T b1, T b2, T b3, T b4)   { return setBit(b0,b1,b2,b3).setBit(b4);  }
+    XCSpiLatch&  setBit(T b0, T b1, T b2, T b3, T b4, T b5)   { return setBit(b0,b1,b2,b3,b4).setBit(b5);  }
+    XCSpiLatch&  setBit(T b0, T b1, T b2, T b3, T b4, T b5, T b6)   { return setBit(b0,b1,b2,b3,b4,b5).setBit(b6);  }
+    XCSpiLatch&  setBit(T b0, T b1, T b2, T b3, T b4, T b5, T b6, T b7)   { return setBit(b0,b1,b2,b3,b4,b5,b6).setBit(b7);  }
     //modify the 32bits register by setting a specific bits
     XCSpiLatch&  setBit(T bit, unsigned val)   { 
         if (val) return setBit(bit); else return clrBit(bit);  }
@@ -91,6 +98,13 @@ public:
     XCSpiLatch&  clrMask(unsigned mask) { return set(reg & ~mask); }
     //modify the 32bits register by clearing some bits according to mask parameter
     XCSpiLatch&  clrBit(T bit)   { return clrMask(1UL << bit); }
+    XCSpiLatch&  clrBit(T b0, T b1)   { return clrBit(b0).clrBit(b1);  }
+    XCSpiLatch&  clrBit(T b0, T b1, T b2)   { return clrBit(b0,b1).clrBit(b2);  }
+    XCSpiLatch&  clrBit(T b0, T b1, T b2, T b3)   { return clrBit(b0,b1,b2).clrBit(b3);  }
+    XCSpiLatch&  clrBit(T b0, T b1, T b2, T b3, T b4)   { return clrBit(b0,b1,b2,b3).clrBit(b4);  }
+    XCSpiLatch&  clrBit(T b0, T b1, T b2, T b3, T b4, T b5)   { return clrBit(b0,b1,b2,b3,b4).clrBit(b5);  }
+    XCSpiLatch&  clrBit(T b0, T b1, T b2, T b3, T b4, T b5, T b6)   { return clrBit(b0,b1,b2,b3,b4,b5).clrBit(b6);  }
+    XCSpiLatch&  clrBit(T b0, T b1, T b2, T b3, T b4, T b5, T b6, T b7)   { return clrBit(b0,b1,b2,b3,b4,b5,b6).clrBit(b7);  }
     //modify the 32bits register with a bitwise "and" and "or"
     XCSpiLatch&  andOrMask(unsigned and_, unsigned or_) { return set((reg & and_)| or_); }
     //return the value of the shadow register representing the physical latch
