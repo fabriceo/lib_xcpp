@@ -119,6 +119,31 @@ namespace XC {
         void reset() { 
             writeValue(0); }
     }
+
+
+    const unsigned buff_bitStrSize = 256;
+    char buff_bitStr[buff_bitStrSize];
+
+    char * bitFieldToStr(const char * str[], unsigned val, unsigned max, unsigned invert) {
+        char * p = buff_bitStr;
+        char * pmax = p + buff_bitStrSize - 1;
+        unsigned index = 0;
+        while (max && (p<pmax)) {
+            max--;
+            if (p != buff_bitStr) { *p=' '; p++; }
+            if (((val >> max) ^ (invert >> max)) & 1) {
+                char * q = (char*)str[index];
+                while (*q && (p<pmax)) { *p=*q; p++; q++; }
+            } else {
+                if (p<pmax) *(p++)='0'+((invert >> max) & 1);
+            }
+            index++;
+        }
+        *p=0;
+        return buff_bitStr;
+    }
+
+
 };
 
 XCPort          XCPortUndefined; 

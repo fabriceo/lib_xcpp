@@ -494,6 +494,8 @@ namespace XC {
         bitSet&  operator = (const unsigned rhs) { set(rhs); return *this; }
         proxy    operator[] (const unsigned i) { return proxy(word,i); }
     };
+
+    char * bitFieldToStr(const char * str[], unsigned val, unsigned max, unsigned invert = 0);
 };
 
 //basic object to hold the ressource identifier (=address) and some basis member function 
@@ -687,6 +689,8 @@ public:
     //attach a clock to a port (default is refclock). defined later as we dont know class XCClock content
     XCPort&  setClock(XCClock& clk); 
     //reset the port in standard mode to be used either as in out
+    XCPort&  setClock(unsigned clkAddr)  { 
+        asm volatile("setclk res[%0],%1"::"r"(addr),"r"(clkAddr)); return *this; }
     XCPort&  setInOutData() { setci(0x5007); return *this; }
     XCPort&  setOutClock()  { setci(0x500F); return *this; }
     XCPort&  setReadyport() { setci(0x5017); return *this; }
@@ -1310,6 +1314,8 @@ public:
         return res;
     }
 
+    //take any byte or token from the chanel and cancel it.
+    //stop and comes back when receiving a CT_END
     XCChanendPort& flushEND() {
         while(1) {
             if (testCT()) {
@@ -1371,8 +1377,7 @@ class XCClock : public XCResourceID {
 };
 
 
-inline XCPort& XCPort::setClock(XCClock& clk) { 
-    asm volatile("setclk res[%0],%1"::"r"(addr),"r"(clk.addr)); return *this; }
+inline XCPort& XCPort::setClock(XCClock& clk) { return setClock(clk.addr); }
 //helper to set protocols
 inline XCPort& XCPort::protocolInHandshake(XCPort& readyIn, XCPort& readyOut, XCClock& clk) {
     setInOutData(); setBuffered(); in_(); 
