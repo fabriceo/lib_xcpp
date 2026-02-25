@@ -124,6 +124,10 @@ namespace XC {
     const unsigned buff_bitStrSize = 256;
     char buff_bitStr[buff_bitStrSize];
 
+    //return a string made with a array of const char * string[]
+    //each bit to 1 will extract a string from the array, otherwise displayed as 0
+    //possibility to pass an "invert" value to extract when bit is zero, otherwise displayed at 1
+    //typically used to show a comprehensive register content from a chip
     char * bitFieldToStr(const char * str[], unsigned val, unsigned max, unsigned invert) {
         char * p = buff_bitStr;
         char * pmax = p + buff_bitStrSize - 1;
