@@ -945,18 +945,22 @@ can be used when waiting doesnt require to hold the task to give corresponding m
 class XCTimerMicros {
 private:
     long long ofset;
+    long long srearm;
 public:
-    XCTimerMicros() { }
+    XCTimerMicros() : srearm(0) { }
     XCTimerMicros(const long long t) { set(t); }
     XCTimerMicros& clr() { ofset = XC::micros(); return *this; }
-    XCTimerMicros& set(const long long t) { ofset = XC::micros() + t; return *this; }
+    XCTimerMicros& set(const long long t) { srearm=t; ofset = XC::micros() + t; return *this; }
     long long get() const { return XC::micros() - ofset; }
     long long getLeft() { 
         long long remain = ofset - XC::micros(); 
         if (remain < 0) remain = 0;
         return remain;
     }
+    XCTimerMicros& rearm() { return set(srearm); }
+    XCTimerMicros& rearmSync() { ofset += srearm; return *this; }
     long long remains() { return getLeft(); }
+    bool finished() { return getLeft() == 0; }
     XCTimerMicros& wait() { while (remains()) {} ; return *this; }
     XCTimerMicros& wait(const long long t) { 
         long long target = XC::micros() + t;
