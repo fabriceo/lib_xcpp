@@ -299,15 +299,15 @@ I2Cres_t XC_I2Cmaster :: writeRegsTable( unsigned device, const char table[], bo
             if (multi == false) {
                 for (unsigned i=0; i<tot; i++) {
                     if ((res = writeReg( device, first+i,  p[i] )) == NACK) break;
-                    if (printOn>=1)  d_printf("reg %3d: %2X\n",first+i,p[i]);
+                    if (printOn>=1)  debug_printf("reg %d: %X\n",first+i,p[i]);
                 }
 
             } else {
                 p--;
                 if (printOn>=1) {
-                    d_printf("reg %3d: ",p[0]);
-                    for (int i=0; i<(tot); i++) d_printf("%2X, ",p[i+1]);
-                    d_printf("\n");
+                    debug_printf("reg %d: ",p[0]);
+                    for (int i=0; i<(tot); i++) debug_printf("%X, ",p[i+1]);
+                    debug_printf("\n");
                 }
                 unsigned n;
                 res = write(device, tot+1,(char*)p,n,true);

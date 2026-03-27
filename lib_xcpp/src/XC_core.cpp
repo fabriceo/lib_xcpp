@@ -60,7 +60,7 @@ namespace XC {
 
     int microsToTicks(unsigned us) {
         long long val = lmulu(micros_ticks_factor,us).ll;
-        lsat(val,micros_ticks_prediv);
+        lsats(val,micros_ticks_prediv);
         int ticks = lextract(val,micros_ticks_prediv);
         return ticks;
     }

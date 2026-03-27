@@ -302,13 +302,13 @@ namespace XC {
   inline void stdi(long long x,const void * base, const unsigned index) { 
     LongLong_t ll = { .ll = x }; stdi(ll, base, index);}
 
-  inline void lsat(long long * x,const unsigned mant) {
+  inline void lsats(long long * x,const unsigned mant) {
       LongLong_t * ll = (LongLong_t *)x;
-      asm("lsat %0,%1,%2":"=r"(ll->lh.hi),"=r"(ll->lh.lo):"r"(mant),"0"(ll->lh.hi),"1"(ll->lh.lo));
+      asm("lsats %0,%1,%2":"=r"(ll->lh.hi),"=r"(ll->lh.lo):"r"(mant),"0"(ll->lh.hi),"1"(ll->lh.lo));
   }
-  inline LongLong_t lsat(long long x,const unsigned mant) {
+  inline LongLong_t lsats(long long x,const unsigned mant) {
       LongLong_t res; LongLong_t ll = { .ll = x }; 
-      asm("lsat %0,%1,%2":"=r"(res.lh.hi),"=r"(res.lh.lo):"r"(mant),"0"(ll.lh.hi),"1"(ll.lh.lo));
+      asm("lsats %0,%1,%2":"=r"(res.lh.hi),"=r"(res.lh.lo):"r"(mant),"0"(ll.lh.hi),"1"(ll.lh.lo));
       return res;
   }
 
@@ -1341,14 +1341,12 @@ public:
         while(1) {
             if (testCT()) {
                 char ct = inCT();
-                if (ct==XC::CT_END) {
-                    lockRx.release();
-                    return *this;
-                }
+                if (ct == XC::CT_END) break;
             } else {
                 XC_UNUSED char ch = inByte();
             }
         }
+        lockRx.release();
         return *this;
     }
 
