@@ -5,9 +5,14 @@
 #include <string.h>         //for memset
 #include <stdarg.h>         //for va_start, va_arg, va_end
 #include "XC_core.hpp"
+
+#if defined(DEBUG_PRINT_ENABLE) && (DEBUG_PRINT_ENABLE == 1)
 //#undef  DEBUG_UNIT
 //#define DEBUG_UNIT XC_I2C
-#include "debug_print.h"
+#include "debug_print.h"    //xmos standard library
+#else
+#define debug_printf(...)
+#endif
 
 typedef enum { NACK=0, ACK=1 } I2Cres_t;    //the device may NACK or ACK the last byte.
 typedef enum { 
@@ -267,7 +272,19 @@ I2Cres_t write( unsigned device,
 I2Cres_t read(  unsigned device, 
                 const unsigned m, char buf[], 
                 bool send_stop_bit);
- 
+
+I2Cres_t write2buf( 
+                unsigned device, 
+                unsigned first, unsigned second,
+                const unsigned n, char buf[],
+                unsigned &num_bytes_sent);          
+
+I2Cres_t read2buf( 
+                unsigned device, 
+                unsigned first, unsigned second,
+                const unsigned n, char buf[],
+                unsigned &num_bytes_sent);
+
 void measure();                
 
 void masterInit( unsigned kbitsps, bool measure_ = false, unsigned printOn_ = 0);

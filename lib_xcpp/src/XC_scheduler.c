@@ -1,7 +1,7 @@
 /**
  * @file XC_scheduler.c
  * @version 2.0
- * Copyright (C) 2026, fabrice oudert
+ * Copyright (C) 2026, fabriceo
  * https://github.com/fabriceo
  *
  * This library is free software; you can redistribute it and/or
@@ -74,7 +74,7 @@ XCStaskPtr_t XCSchedulerYieldDelay(const int max) {
     XCStaskPtr_t res;
     int time = XCS_SET_TIME(max);
     do  res  = XCSchedulerYield();
-    while  ( ! XCS_END_TIME(time) );
+    while  ( XCS_ONGOING_TIME(time) );
     return res;
 }
 

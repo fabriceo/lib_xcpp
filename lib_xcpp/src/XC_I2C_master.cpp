@@ -28,7 +28,6 @@ I2Cres_t XC_I2Cmaster :: write( unsigned device,
     return (res == 0) ? ACK : NACK;
 }
 
-
 I2Cres_t XC_I2Cmaster :: read(  unsigned device, 
                                 const unsigned m, char buf[], 
                                 bool send_stop_bit) 
@@ -60,6 +59,57 @@ I2Cres_t XC_I2Cmaster :: read(  unsigned device,
     if (send_stop_bit) stop_bit();
 
     return (res == 0) ? ACK : NACK;
+}
+
+
+
+//typically used to write multibytes in eeprom starting with 2 bytes for adress
+I2Cres_t XC_I2Cmaster :: write2buf( 
+                            unsigned device, 
+                            unsigned first, unsigned second,
+                            const unsigned n, char buf[],
+                            unsigned &num_bytes_sent) 
+{
+    if (0==kbits_per_second) return NACK;
+    //debug_printf("write %d, %d bytes\n",device,n);
+    start_bit();
+    lastReg = 0;
+    int res;
+    int j = 0;
+    while(1) {  //just to avoid "goto"
+        res = tx8((device << 1) | 0); //aka "write=0"
+        if (res != 0) break;
+        res = tx8(first);
+        if (res != 0) break;
+        res = tx8(second);
+        if (res != 0) break;
+        for (; j < n; j++) {
+            if (res != 0) break; // break if not Acknowledged ?
+            res = tx8(buf[j]);
+        }
+        break;
+    }
+    stop_bit();
+    num_bytes_sent = j;
+    //debug_printf("write done %d bytes, res = %d\n",j,ack);
+    return (res == 0) ? ACK : NACK;
+}
+
+I2Cres_t XC_I2Cmaster :: read2buf( 
+                            unsigned device, 
+                            unsigned first, unsigned second,
+                            const unsigned n, char buf[],
+                            unsigned &num_bytes_sent) {
+
+    char tab[2];
+    I2Cres_t res;
+    tab[0] = first; tab[1] = second;
+    unsigned num;
+    res = write(device,2, tab, num, false);
+    if ((res == ACK) && (num==2)) {
+        res = read(device,n,buf,true);
+    } else sendStopBit();
+    return res;
 }
 
 

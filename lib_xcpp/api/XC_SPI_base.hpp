@@ -111,8 +111,6 @@ public:
     unsigned get() const { return reg; }
     //return the value of the shadow register of a given bit
     unsigned getBit(T bit) { return (reg >> bit) & 1UL; }
-    //return the value of the shadow register of a given bit
-    unsigned get(T bit) { return getBit(bit); }
     //send the value of the 32bit register on the SPI bus
     XCSpiLatch&  update() {
         SPI.transfer( reg, nbits);

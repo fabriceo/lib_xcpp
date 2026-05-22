@@ -2,7 +2,7 @@
  * @file XC_scheduler.h
  *
  * @section License
- * Copyright (C) 2023, fabrice oudert
+ * Copyright (C) 2023, fabriceo
  * https://github.com/fabriceo
  *
  * This library is free software; you can redistribute it and/or
@@ -103,6 +103,8 @@ static inline int XCS_GET_TIME()            { int time; asm volatile("gettime %0
 static inline int XCS_SET_TIME(const int x) { int time = XCS_GET_TIME() + x; return time; }
 //return true if current time is after the given value
 static inline int XCS_END_TIME(const int t) { int time = XCS_GET_TIME() - t; return ( time >= 0 ); }
+//return true if current time is below the given value
+static inline int XCS_ONGOING_TIME(const int t) { return ! XCS_END_TIME(t); }
 
 //test presence of a token or data in a given channel, non blocking code
 static inline unsigned XCStestChan(unsigned ch) {

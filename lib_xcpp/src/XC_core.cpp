@@ -7,7 +7,12 @@
 
 
 namespace XC {
+    //zero or the tileID once an application is started.
+    TileID_t tileAppStarted;
+    //used to store random number from cycle to cycle
+    unsigned randomBase;
 
+    int tileTimeStamp;
     unsigned referenceHz = PLATFORM_REFERENCE_HZ;
     //micros factor is a 32 bit coefficient to be used in a long mul 
     //to convert ticks to microseconds, by taking msb of the 64bit result
@@ -39,7 +44,7 @@ namespace XC {
 
     //return the real time 64 bits timer value divided by 100 (depending on PLL).
     //return as "signed long long" is a choice in order to be abble to compare futur and actual easily
-    //the number will never reach 63 bit overflow as this would represent 5800 years of continuous execution
+    //the number will never be negative nor reach 63 bit overflow as this would represent 5800 years of continuous execution
     long long micros(){ 
         LongLong_t local = { .ll = getTime64() };
         XC_UNUSED unsigned temp;
@@ -92,7 +97,7 @@ namespace XC {
             return ticks;
         }
         unsigned readValue(){
-            read_sswitch_reg(get_local_tile_id(), 6, &lastValue);
+            read_sswitch_reg(local_tile_id(), 6, &lastValue);
             return lastValue;
         }
         unsigned readTicks() { return computeTicks(readValue());}
@@ -101,12 +106,12 @@ namespace XC {
             unsigned pllNew = pll & 0x03FFFFFF;
             if (pllNew==0) {    //used to start reset sequence
                 pllNew = readValue();
-                write_sswitch_reg_no_ack(get_local_tile_id(), 6, pllNew | (0 << 30) );
+                write_sswitch_reg_no_ack(local_tile_id(), 6, pllNew | (0 << 30) );
                 while(1) {}
                 __builtin_unreachable();
             } else
             if ((lastValue == 0) || (pll != lastValue)) {
-                write_sswitch_reg_no_ack(get_local_tile_id(), 6, pllNew | (3 << 30) );
+                write_sswitch_reg_no_ack(local_tile_id(), 6, pllNew | (3 << 30) );
                 lastValue = pllNew;
                 return computeTicks(pllNew);
             }
