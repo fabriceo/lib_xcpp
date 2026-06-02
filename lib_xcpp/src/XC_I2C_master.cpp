@@ -130,7 +130,7 @@ void XC_I2Cmaster :: measure() {
         thigh += XC::getTime() - t;
         timer.waitTicks(half_bit_ticks);
     }
-    debug_printf("time scl rise = %dns, t scl fall = %dns\n",thigh,tlow);
+    debug_printf((char*)"time scl rise = %dns, t scl fall = %dns\n",thigh,tlow);
 
     thigh = 0;
     tlow  = 0;
@@ -146,7 +146,7 @@ void XC_I2Cmaster :: measure() {
         thigh += XC::getTime() - t;
         timer.waitTicks(half_bit_ticks);
     }
-    debug_printf("time sda rise = %dns, t sda fall = %dns\n",thigh,tlow);
+    debug_printf((char*)"time sda rise = %dns, t sda fall = %dns\n",thigh,tlow);
 
 }
 
@@ -161,7 +161,7 @@ void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_, unsigned printO
         return; 
     }
     printOn = printOn_;
-    debug_printf("XC_I2C_masterInit(%dkbps)\n",kbitsps);
+    debug_printf((char*)"XC_I2C_masterInit(%dkbps)\n",kbitsps);
     timer.getLocal();   //use a timer allocated to the current task, not a specific one.
     compute_ticks(kbitsps);
     bus_busy = 0;
@@ -349,15 +349,15 @@ I2Cres_t XC_I2Cmaster :: writeRegsTable( unsigned device, const char table[], bo
             if (multi == false) {
                 for (unsigned i=0; i<tot; i++) {
                     if ((res = writeReg( device, first+i,  p[i] )) == NACK) break;
-                    if (printOn>=1)  debug_printf("reg %d: %X\n",first+i,p[i]);
+                    if (printOn>=1)  debug_printf((char*)"reg %d: %X\n",first+i,p[i]);
                 }
 
             } else {
                 p--;
                 if (printOn>=1) {
-                    debug_printf("reg %d: ",p[0]);
-                    for (int i=0; i<(tot); i++) debug_printf("%X, ",p[i+1]);
-                    debug_printf("\n");
+                    debug_printf((char*)"reg %d: ",p[0]);
+                    for (int i=0; i<(tot); i++) debug_printf((char*)"%X, ",p[i+1]);
+                    debug_printf((char*)"\n");
                 }
                 unsigned n;
                 res = write(device, tot+1,(char*)p,n,true);

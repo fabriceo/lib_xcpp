@@ -75,11 +75,11 @@ void testOther() {
     P4B.setMode(XCPort::INPUT_PULLDOWN);
     u = P4B.getTriggerTime();
     P4B.setCondNotEqual(10);
-    p = P4B.in_();
+    p = P4B.in();
     v = P4B.getTriggerTime();
     delay_microseconds(10);
     P4B.setd(p);
-    q = P4B.in_();
+    q = P4B.in();
     w = P4B.getTriggerTime();
     u = v - u;
     v = w - v;

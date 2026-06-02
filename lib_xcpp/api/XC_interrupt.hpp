@@ -1,4 +1,7 @@
 
+
+/* FROM XMOS XCORE ALMOST 100% identical*/
+
 // The user may define a larger kstack for their own worse case use.
 #ifndef LIBXCORE_KSTACK_WORDS
 #define LIBXCORE_KSTACK_WORDS 0

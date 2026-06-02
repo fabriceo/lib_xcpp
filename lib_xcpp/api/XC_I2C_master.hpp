@@ -6,10 +6,13 @@
 #include <stdarg.h>         //for va_start, va_arg, va_end
 #include "XC_core.hpp"
 
+//with this test, it is not mandatory to link lib_loggig with lib_xcpp
 #if defined(DEBUG_PRINT_ENABLE) && (DEBUG_PRINT_ENABLE == 1)
 //#undef  DEBUG_UNIT
 //#define DEBUG_UNIT XC_I2C
 #include "debug_print.h"    //xmos standard library
+//add this function alias to avoid the warning specific to c++11
+//void debug_printf(char const fmt[], ...) asm("debug_printf");
 #else
 #define debug_printf(...)
 #endif
@@ -115,7 +118,7 @@ private:
         sclLow_min_ticks  += jitter_ticks;
         sclHigh_min_ticks += jitter_ticks;
         bus_off_ticks = half_bit_ticks/2 + one_bit_ticks/16;
-        debug_printf("accepted rise ticks = %dns\n",rise_ticks*10);
+        debug_printf((char*)"accepted rise ticks = %dns\n",rise_ticks*10);
     }
 
     /** Releases the SCL line, reads it back and waits until it goes high (in

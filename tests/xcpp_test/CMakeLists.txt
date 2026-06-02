@@ -20,6 +20,7 @@ set(XMOS_SANDBOX_DIR ${CMAKE_CURRENT_LIST_DIR}/../../..)
 
 XMOS_REGISTER_APP()
 
+#this generate an .asm file from xobjdump
 foreach (REGISTERED_TARGET ${APP_BUILD_TARGETS})
     add_custom_command(
         TARGET ${REGISTERED_TARGET}
