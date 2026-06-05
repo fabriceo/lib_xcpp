@@ -15,18 +15,25 @@ lib_xcpp: using xmos with cpp programs
 Overview
 ********
 
-This is the main C++ library for NAX1
+The library objective is to provide a simple but comprehensive environement to develop XMOS programs fully c++ based.
+This is the main C++ library used in NAX1 audio analyzer project.
 
 ********
 Features
 ********
 
+mainly Objects to create and use ports, chanend, timers.
+inline routines for most usefull assembly opcodes.
+helpers for select stement and event management
+cooperative scheduler (yield)
+I2C master et SPI master
 
 ************
-Known Issues
+Known Issues or limitations
 ************
 
   * None
+  no solution (yet) for par { } equivalent : requires **xcore.h**
 
 **************
 Required Tools
@@ -44,7 +51,10 @@ Required Libraries (dependencies)
 Related Application Notes
 *************************
 
+see folder examples or tests
 
 *******
 Support
 *******
+
+xcore.com forum

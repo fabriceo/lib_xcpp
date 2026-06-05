@@ -5,14 +5,17 @@
  unsigned XCtimeStart1;
  unsigned XCtimeStart2;
 
-
 namespace XC {
-    //zero or the tileID once an application is started.
-    TileID_t tileAppStarted;
+    //zero or the tileID once an task is about to started.
+    TileID_t tileMainStarted;
+    int tileTimeStamp;
+    //used to test if constructor are launched before or after main(). contains tileID
+    unsigned afterMain;
+    unsigned cmdLineSize;
+    char * cmdLinePtr;
     //used to store random number from cycle to cycle
     unsigned randomBase;
 
-    int tileTimeStamp;
     unsigned referenceHz = PLATFORM_REFERENCE_HZ;
     //micros factor is a 32 bit coefficient to be used in a long mul 
     //to convert ticks to microseconds, by taking msb of the 64bit result
@@ -190,10 +193,26 @@ extern "C" {
     //just reboot/reset the CPU
     void XCPLLreset()           { XC::PLL::reset(); }
     //used to gently pass control to another task running on same core
-    __attribute__ ((weak)) 
-    void XCyield()              { XC::yield(); }
+    XC_WEAK void XCyield()              { XC::yield(); }
 
+    //this default code ran before main() and after constructors initialization
+    int XCbeforeMain_(char * cmd, unsigned size) { 
+        XC::cmdLinePtr = cmd; XC::cmdLineSize = size;
+        //this will fill XC::afterMain and tileMainStarted both with local_tile_id
+        XC::setTileAppStarted();
+        XC::resetTimeTile();
+        return 0;
+    }
+     XC_WEAK int XCbeforeMain(char * cmd, unsigned size) { return XCbeforeMain_(cmd, size); }
+
+    //overload weak symbol. this routine is executed at the begining of _startExit
+    //after all the constructor calls and just before the main entry point
+    int _get_cmdline(char * cmd, unsigned size) {
+        return XCbeforeMain(cmd,size);
+    }
 };
+
+
 
 asm (
     "\n	.globl	XC_USE_TIMER"

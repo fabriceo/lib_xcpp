@@ -166,8 +166,8 @@ void XC_I2Cmaster :: masterInit(unsigned kbitsps, bool measure_, unsigned printO
     compute_ticks(kbitsps);
     bus_busy = 0;
     lastReg = 0;
-    sda.getPort().enable().setMode(XCPort::OUTPUT_PULLUP); sdaHigh();
-    scl.getPort().enable().setMode(XCPort::OUTPUT_PULLUP); sclHigh();
+    sda.getPort().enable().setMode(XC::OUTPUT_PULLUP); sdaHigh();
+    scl.getPort().enable().setMode(XC::OUTPUT_PULLUP); sclHigh();
     timer.waitTicks(one_bit_ticks);
     if (measure_) measure();
 

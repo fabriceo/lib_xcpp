@@ -14,10 +14,17 @@
 #include <stdint.h>
 #include <stdio.h>
 
+#ifdef __xcpp_conf_h_exists__
+#include "xcpp_conf.h"
+#endif
+
 //various helpers macros
 
 #ifndef XC_UNUSED
 #define XC_UNUSED       __attribute__ ((unused))
+#endif
+#ifndef XC_WEAK
+#define XC_WEAK         __attribute__ ((weak))
 #endif
 #ifndef XC_NOINLINE
 #define XC_NOINLINE     __attribute__ ((noinline))
@@ -34,6 +41,10 @@
 
 #ifndef XC_ALIGNED
 #define XC_ALIGNED(_X)  __attribute__ ((aligned(_X)))
+#endif
+
+#ifndef XC_PACKED
+#define XC_PACKED  __attribute__ ((packed))
 #endif
 
 #ifndef XC_JOIN0
@@ -55,7 +66,7 @@
 #define XC_UNIQUE_LABEL(_BNAME)             XC_UNIQUE_LABEL_I(_BNAME, __COUNTER__)
 #endif
 
-//set the adress of a function in a variable
+//set the adress of a function in a variable (only for extern "c" linkage)
 #define XC_FUNC_ADDRESS(_f,_n)     do { register unsigned _r asm("r11"); asm ("ldap %0," #_f : "=r"(_r)); _n=r; } while(0)
 //set the stacksize of a function in a variable (only for extern "c" linkage)
 #define XC_FUNC_NSTACKWORDS(_f,_n) do { asm("ldc %0,  " #_f ".nstackwords"  : "=r"(_n) ); } while (0)
@@ -107,7 +118,7 @@ public:
 namespace XC {
 //some basic types used in XC classes
 
-    typedef enum {
+    typedef enum { tileNull = 0,
         tile0 = 0x8002, tile1 = 0x8003,
     } TileID_t;
 
@@ -142,6 +153,10 @@ namespace XC {
 
         PORT_32A= XS1_PORT_32A, PORT_32B= XS1_PORT_32B,                                                 //32 bits ports
   } Port_t;
+
+  typedef enum { 
+        UNUSED, UNDEFINED, INPUT, INPUT_PULLUP, INPUT_PULLDOWN, OUTPUT, OUTPUT_DRIVE = OUTPUT, OUTPUT_PULLUP, OUTPUT_PULLDOWN  
+  } PortMode_t;
 
     //this function returns a number between 0..31 corresponding to each of the above ports
     //max 16 cpu instructions in single issue. not used yet
@@ -226,7 +241,8 @@ namespace XC {
     //no-operation
     inline void     nop()     { asm volatile("nop"); }
     //force compiler to reload any variable, considering registers might have been corrupted.
-    inline void     barrier() { asm volatile("":::"memory"); }//,"r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r10","r11");
+    inline void     barrier() { asm volatile("":::"memory"); } //,"r0","r1","r2","r3","r4","r5","r6","r7","r8","r9","r10","r11");
+    inline void     barrier_r0r1r2r3r11() { asm volatile("":::"memory","r0","r1","r2","r3","r11"); } //,"r4","r5","r6","r7","r8","r9","r10");
     inline unsigned peek(unsigned p) { unsigned res; asm volatile("peek %0,res[ %1 ]":"=r"(res):"r"(p)); return res; }
 };
 
@@ -282,8 +298,9 @@ namespace XC {
       struct lh_s  {  unsigned lo; int hi; } lh;
       struct ulh_s {  unsigned lo; unsigned hi; } ulh;
       unsigned u[2]; int i[2]; char ch[8]; short s[4]; unsigned short us[4];
+      struct XC_PACKED bit_s { unsigned x:1; } b[64];
   } LongLong_t;
-
+  const int x = sizeof(LongLong_t);
   //assembly routine to optimze code requiring double size access
 
   //loads a target LongLong_t with 64bits value stored at base[index]
@@ -487,10 +504,13 @@ namespace XC {
     static inline TileID_t local_tile_id() { 
         TileID_t res; asm("ldc %0,_local_tile_id":"=r"(res)); return res; }
 
-    extern TileID_t tileAppStarted;
-    static inline unsigned setTileAppStarted() {
-        return (tileAppStarted = XC::local_tile_id());
+    extern TileID_t tileMainStarted;
+    extern unsigned afterMain;
+    static inline unsigned setTileMainStarted() {
+        tileMainStarted = XC::local_tile_id();
+        return (afterMain = tileMainStarted);
     }
+    static inline unsigned setTileAppStarted() { return setTileMainStarted(); }
 
     extern unsigned randomBase;
     const static unsigned randomPoly = 0xEDB88320;   //0xEB31D82E seems better ?
@@ -514,14 +534,18 @@ namespace XC {
         return rnd;
      }
 
-    //this will store the latest 64 bit time computed
-    extern volatile LongLong_t getTime64Ticks;
+    //this is used to store the time stamp of the tile when a first task is launched, calling resetTimeTile()
     extern int tileTimeStamp;
+    extern unsigned cmdLineSize;
+    extern char * cmdLinePtr;
+
 
     inline int resetTimeTile() { return (tileTimeStamp = getTime()); }
-    inline int  getTimeTile() { return getTime()-tileTimeStamp; }
-    inline int  getTimeTile(int gottime) { return gottime-tileTimeStamp; }
+    inline int getTimeTile() { return getTime()-tileTimeStamp; }
+    inline int getTimeTile(int gottime) { return gottime-tileTimeStamp; }
 
+    //this will store the latest 64 bit time computed
+    extern volatile LongLong_t getTime64Ticks;
     //returns a global timer value in 64 bits by extending internal gettime instruction
     //needs to be called from any core at least every 10 seconds otherwise will loose 31bit overflow
     //this needs to be called at least every 10 seconds otherwise will loose 31bit overflow
@@ -749,35 +773,65 @@ class XCClock;
 
 // object representing a physical port 1,4,8,16 or 32 bits
 class XCPort : public XCResourceID {
+    XC_UNUSED const XC::TileID_t tileID;
 public:
     //port configuration
-    typedef enum { UNUSED, UNDEFINED, INPUT, INPUT_PULLUP, INPUT_PULLDOWN, OUTPUT, OUTPUT_DRIVE = OUTPUT, OUTPUT_PULLUP, OUTPUT_PULLDOWN  } PortMode_t;
-
+    //typedef enum { UNUSED, UNDEFINED, INPUT, INPUT_PULLUP, INPUT_PULLDOWN, OUTPUT, OUTPUT_DRIVE = OUTPUT, OUTPUT_PULLUP, OUTPUT_PULLDOWN  } PortMode_t;
+    typedef XC::PortMode_t PortMode_t;
+    //using PortMode_t = XC::PortMode_t;
     //gives possibility to declare a port object without giving its address yet.
-    XCPort() : XCResourceID(0) { }
+    XCPort() : XCResourceID(0), tileID(XC::tileNull) { }
 
-    //defines a port with its adress using XS1_PORT_xx
-    XCPort(unsigned p) : XCResourceID(p) { }
+    //defines a port with its adress using predefined XS1_PORT_xx
+    XCPort(unsigned p) : XCResourceID(p), tileID(XC::tileNull) { }
         
-    //defines a port with its adress using XS1_PORT_xx
-    XCPort(XC::TileID_t t, unsigned p) : XCResourceID(p) { 
-        if ( (XC::tileAppStarted != 0) && (t != XC::tileAppStarted)) __builtin_trap(); }
-
     //defines a port with its adress and the operating mode, not tile specified
-    XCPort(unsigned p, PortMode_t mode_) : XCResourceID(p) {  
-        if (XC::tileAppStarted != 0) setMode(mode_);  }
-
-    //defines a port with its tile adress and the operating mode
-    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_) : XCPort(t,p) {
-        if (t == XC::local_tile_id()) setMode(mode_); }
-
+    XCPort(unsigned p, PortMode_t mode_) : XCResourceID(p), tileID(XC::tileNull) {  
+        if (XC::tileMainStarted == 0) __builtin_trap(); //cannot initialize a global port defined without specific tile
+        setMode(mode_);
+    }
     //defines a port with its adress and the operating mode and the initial value
     //should be used only after main() is started, not in global definition
-    XCPort(unsigned p, PortMode_t mode_, unsigned initial) : XCResourceID(p) { 
-       if (XC::tileAppStarted != 0) setMode(mode_,initial);  }
+    XCPort(unsigned p, PortMode_t mode_, unsigned initial) : XCResourceID(p), tileID(XC::tileNull) { 
+        if (XC::tileMainStarted == 0) __builtin_trap(); //cannot initialize a global port defined without specific tile
+        setMode(mode_,initial); 
+    }
+    //defines a port with its adress using XS1_PORT_xx
+    XCPort( XC::TileID_t t, unsigned p) : XCResourceID(p), tileID(t) { 
+        if ( XC::tileMainStarted ) {
+            //check if a local port declaration is done with same tileID
+            if (t != XC::tileMainStarted) __builtin_trap();
+        } else {
+            //this is a global declaration. check if compatible with this tileID
+            if (t != XC::local_tile_id()) this->addr = 0; //cannot be used on this tile, this would trigger an error if used
+        }
+    }
 
-    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_, unsigned initial) : XCPort(t,p) { 
-        if (t == XC::local_tile_id()) setMode(mode_, initial); }
+    //defines a port with its tile adress and the operating mode
+    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_) : XCResourceID(p), tileID(t) { 
+        if ( XC::tileMainStarted ) {
+            //check if a local port declaration is done with same tileID
+            if (t != XC::tileMainStarted) __builtin_trap();
+        } else {
+            //this is a global declaration. check if compatible with this tileID
+            if (t != XC::local_tile_id()) {
+                this->addr = 0; //cannot be used on this tile, this would trigger an error if used
+                return; }
+        }
+        setMode(mode_); 
+    }
+    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_, unsigned initial) : XCResourceID(p), tileID(t) { 
+        if ( XC::tileMainStarted ) {
+            //check if a local port declaration is done with same tileID
+            if (t != XC::tileMainStarted) __builtin_trap();
+        } else {
+            //this is a global declaration. check if compatible with this tileID
+            if (t != XC::local_tile_id()) {
+                this->addr = 0; //cannot be used on this tile, this would trigger an error if used
+                return; }
+        }
+        setMode(mode_, initial); 
+    }
 
     //destructor    
     ~XCPort() { if (addr) { free(); } }
@@ -785,15 +839,15 @@ public:
     XCPort&  setMode(PortMode_t mode_) {
         asm volatile("### setMode(PortMode_t mode_)");
         switch (mode_) {
-            case UNUSED:            setInUseOff(); break;
+            case XC::UNUSED:            setInUseOff(); break;
             default :           //fallthrough
-            case UNDEFINED :    //fallthrough    
-            case INPUT:             enable(); break;
-            case INPUT_PULLUP :     enable().setPullUp();   break;
-            case INPUT_PULLDOWN :   enable().setPullDown(); break;
-            case OUTPUT_DRIVE:      enable().setDrive();    break;
-            case OUTPUT_PULLUP :    enable().set().setPullUp();   break;
-            case OUTPUT_PULLDOWN :  enable().clr().setPullDown(); break;
+            case XC::UNDEFINED :    //fallthrough    
+            case XC::INPUT:             enable(); break;
+            case XC::INPUT_PULLUP :     enable().setPullUp();   break;
+            case XC::INPUT_PULLDOWN :   enable().setPullDown(); break;
+            case XC::OUTPUT_DRIVE:      enable().setDrive();    break;
+            case XC::OUTPUT_PULLUP :    enable().set().setPullUp();   break;
+            case XC::OUTPUT_PULLDOWN :  enable().clr().setPullDown(); break;
         }
         return *this;
     }
@@ -801,15 +855,15 @@ public:
     XCPort&  setMode(PortMode_t mode_, unsigned initial) {
         asm volatile("### setMode(PortMode_t mode_, unsigned initial)");
         switch (mode_) {
-            case UNUSED:            setInUseOff(); break;
+            case XC::UNUSED:            setInUseOff(); break;
             default :           //fallthrough
-            case UNDEFINED :    //fallthrough
-            case INPUT:             enable().setd(initial); break;   //should do "in" to place it in input mode, but not sure if clk is started
-            case INPUT_PULLUP :     enable().setd(initial).setPullUp();   break;
-            case INPUT_PULLDOWN :   enable().setd(initial).setPullDown(); break;
-            case OUTPUT_DRIVE:      enable().outd(initial).setDrive();    break;
-            case OUTPUT_PULLUP :    enable().outd(initial).setPullUp();   break;
-            case OUTPUT_PULLDOWN :  enable().outd(initial).setPullDown(); break;
+            case XC::UNDEFINED :    //fallthrough
+            case XC::INPUT:             enable().setd(initial); break;   //should do "in" to place it in input mode, but not sure if clk is started
+            case XC::INPUT_PULLUP :     enable().setd(initial).setPullUp();   break;
+            case XC::INPUT_PULLDOWN :   enable().setd(initial).setPullDown(); break;
+            case XC::OUTPUT_DRIVE:      enable().outd(initial).setDrive();    break;
+            case XC::OUTPUT_PULLUP :    enable().outd(initial).setPullUp();   break;
+            case XC::OUTPUT_PULLDOWN :  enable().outd(initial).setPullDown(); break;
         }
         return *this;
     }
@@ -1018,7 +1072,7 @@ public:
 #else
 private:
 #endif
-    XCPort &port;    //by reference as multiple XCPortBits can share the same port information and use its unique shadow value
+     XCPort & port;    //by reference as multiple XCPortBits can share the same port information and use its unique shadow value
     const unsigned bitMask;
     //const unsigned sizePort;
 public:
@@ -1027,8 +1081,9 @@ public:
     XCPortBit(XCPort& p, const unsigned bit_) : port(p), bitMask(1UL<<bit_) { }
     XCPortBit(XCPortBit& pbit) : port(pbit.port), bitMask(pbit.bitMask) { }
 
-    XCPortBit& set() { asm volatile("###set()"); port.setMask(bitMask); return *this; }
-    XCPortBit& clr() { port.clrMask(bitMask); return *this; }
+    XCPortBit& set()  { asm volatile("###set()"); port.setMask(bitMask); return *this; }
+    XCPortBit& clr()  { port.clrMask(bitMask); return *this; }
+    XCPortBit& flip() { port.outdXor(bitMask); return *this; }
     XCPortBit& set(const unsigned x) { if (x) set(); else clr(); return *this; }
     unsigned in() const  { return (port.in() & bitMask) != 0; }
     unsigned peek() { return (port.peek() & bitMask) != 0; }
@@ -1119,6 +1174,56 @@ public:
     operator long long () const    { return get(); }
 };
 
+
+template< long long TIME() = XC::getTime64 >
+class XCSWTimer {
+private:
+    long long ofset;
+    long long srearm;
+public:
+    XCSWTimer() : srearm(0) { }
+    XCSWTimer(const long long future) { set(future); }
+    //set the timer in the future and use the given value as a potential rearm value
+    XCSWTimer& set(const long long future) { srearm=future; ofset = TIME()+future; return *this; }
+    //clear the timer but do not change its (potential) rearm value
+    XCSWTimer& clr() { ofset = TIME(); return *this; }
+    //returns the time spend since last set(0) or clr().
+    long long get() const { return TIME() - ofset; }
+    //return the remaining time (positive) till set(time) is reached
+    long long getLeft() { 
+        long long remain = ofset - TIME(); 
+        if (remain < 0) remain = 0;
+        return remain;
+    }
+    //set timer in the future with same value as last set()
+    XCSWTimer& rearm() { return set(srearm); }
+    //set timer in the future to produce regular time (no drift) as last set()
+    XCSWTimer& rearmSync() { ofset += srearm; return *this; }
+    //test if timer set in the future is now finished.
+    bool finished() { return get() >= 0; }
+    //test if timer set in the future is now finished. if so then rearm it for same period as last
+    bool finishedRearm() { bool res = (get() >= 0); if (res) rearm(); return res; }
+    //test if timer set in the future is now finished. if so then rearm it for same regular period as last
+    bool finishedRearmSync() { bool res = (get() >= 0); if (res) rearmSync(); return res; }
+    //test if timer set in the future is still not finished
+    bool ongoing()  { return get() < 0; }
+    bool notFinished()  { return ongoing(); }
+    XCSWTimer& wait() { while (ongoing()) {} ; return *this; }
+    XCSWTimer& wait(const long long t) { 
+        long long target = TIME() + t;
+        while( (TIME() - target) < 0) {} ; return *this; }
+    XCSWTimer& operator =  (long long rhs) { set(rhs);     return *this; }
+    XCSWTimer& operator += (long long rhs) { ofset += rhs; return *this; }
+    XCSWTimer& operator -= (long long rhs) { ofset -= rhs; return *this; }
+    XCSWTimer& operator ++ () { return rearm(); }
+    XCSWTimer& operator = (XCSWTimer& rhs) { 
+        if (&rhs != this) { ofset = rhs.ofset; srearm=rhs.srearm; } return *this; }
+    long long operator () () const { return get(); }
+    operator long long () const    { return get(); }
+};
+
+class XCSWTimerMicros : public XCSWTimer<XC::micros> { };
+class XCSWTimerMillis : public XCSWTimer<XC::millis> { };
 
 /*
   when using "in" on a timer, the return value is exact same as gettime
@@ -1261,7 +1366,7 @@ extern "C" void XC_USE_CHANEND();
 class XCChanend : public XCResourceID {
 public:
 
-    //XCChanend() {}
+    //XCChanend() {} : inherit copy constructor from XCResourceID()
     //resource allocated manually, so no destructor for this object
     XCChanend& getResource() { 
         XC_USE_CHANEND();
@@ -1609,7 +1714,8 @@ inline unsigned XCPort::countClock(XCClock& clk, unsigned ticks) {
     return ts2;
 }
 
-//used to manage remote GPIO port access
+//WORK IN PROGRESS
+//used to manage remote GPIO port access . Requires a server !
 class XCPortRemote {
     unsigned addr;
     unsigned val;
@@ -1638,6 +1744,7 @@ public:
 
 
 
+
 namespace XC {
   namespace PLL {
     //PROTOTYPES defined in XC_core.cpp
@@ -1663,7 +1770,7 @@ inline unsigned calcCRC(void * addr, unsigned size) {
     const unsigned int poly = 0xEDB88320;
     unsigned int crc = 0xFFFFFFFF;
     for (int i=0; i<size; i++,p++) XC::crc32(crc,*p,poly);
-    return crc ? crc : 1;
+    return crc ? crc : poly;
 }
 
 //compute a crc on multiple 32 bits words for any record of class T.
@@ -1681,8 +1788,6 @@ unsigned calcCRCany(T &rec, int delta = 0) {
 }
 
 };
-
-
 
 #endif //__cplusplus
 
@@ -1711,8 +1816,8 @@ extern "C" {
 
 };
 
-namespace xc = XC;
 namespace xC = XC;
+namespace xc = XC;
 
 
 #endif //_XC_CORE_HPP_

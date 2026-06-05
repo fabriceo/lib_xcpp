@@ -173,7 +173,7 @@ uint32_t t0; // Start time when triggering ISR
 
 DEFINE_INTERRUPT_CALLBACK(test_isr_grp, isr_handler, app_data)
 {
-    printf("isr (%lu)\n", get_reference_time() - t0);
+    //printf("isr (%lu)\n", get_reference_time() - t0);
     chanend_t *isr_data = app_data;
 
     chanend_in_byte(*isr_data);

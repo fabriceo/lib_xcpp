@@ -1,4 +1,4 @@
-lib_xcpplib_logging change log
+lib_xcpp change log
 ======================
 
 1.0.0
