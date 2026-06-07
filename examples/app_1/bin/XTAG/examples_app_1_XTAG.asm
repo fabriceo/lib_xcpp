@@ -17,7 +17,7 @@ SYMBOL TABLE
 0x00000006 g   *ABS*      0x00000000 _default_clkblk
 0x00000001 g   *ABS*      0x00000000 _cmdline_buffer_bytes
 0x00000000 g   *ABS*      0x00000000 XSCOPE_REDIRECT_IO_MODE
-0x00000000 l F *ABS*      0x00000000 _goblinS.smtOWLg
+0x00000000 l F *ABS*      0x00000000 _goblinS.sWxDyvT
 0x00080000 g   .text      0x00000000 _start
 0x00080042 l   .text      0x00000000 disableLinks
 0x0008005e l   .text      0x00000000 nodeIdLoop
@@ -97,9 +97,9 @@ SYMBOL TABLE
 0x00080124 l   .text      0x00000000 $s.68
 0x0008012c l   .text      0x00000000 $s.69
 0x00000000 g   *ABS*      0x00000000 __main_default_network
-0x00000000 l F *ABS*      0x00000000 _ir.xcOXAfQc
+0x00000000 l F *ABS*      0x00000000 _ir.xcqwvUcp
 0x00000000 l   .trap_info 0x00000000 .trap_info
-0x00000000 l F *ABS*      0x00000000 _sod.xc5VPyVn
+0x00000000 l F *ABS*      0x00000000 _sod.xcXHq4Js
 0x00080154 l   .dp.data   0x00000000 .dp.data
 0x00080154 g   .dp.data   0x00000000 __sodFlag
 0x00080158 g   .dp.data   0x00000000 __sodEnd
@@ -310,7 +310,7 @@ SYMBOL TABLE
 0x00000006 g   *ABS*      0x00000000 _default_clkblk
 0x00000001 g   *ABS*      0x00000000 _cmdline_buffer_bytes
 0x00000000 g   *ABS*      0x00000000 XSCOPE_REDIRECT_IO_MODE
-0x00000000 l F *ABS*      0x00000000 _goblinS.sJmAEpr
+0x00000000 l F *ABS*      0x00000000 _goblinS.sSdotfU
 0x00080000 g   .text      0x00000000 _start
 0x00000000 l   *ABS*      0x00000000 read_sswitch_reg.nstackwords
 0x00000000 l   *ABS*      0x00000000 read_switch_reg.nstackwords
@@ -372,9 +372,9 @@ SYMBOL TABLE
 0x00080034 l   .text      0x00000000 $s.66
 0x0008003c l   .text      0x00000000 $s.67
 0x00000000 g   *ABS*      0x00000000 __main_default_network
-0x00000000 l F *ABS*      0x00000000 _ir.xcxoTr2S
+0x00000000 l F *ABS*      0x00000000 _ir.xcvs4Wzd
 0x00000000 l   .trap_info 0x00000000 .trap_info
-0x00000000 l F *ABS*      0x00000000 _sod.xcUORdsi
+0x00000000 l F *ABS*      0x00000000 _sod.xcz5v3EK
 0x00080058 l   .dp.data   0x00000000 .dp.data
 0x00080058 g   .dp.data   0x00000000 __sodFlag
 0x0008005c g   .dp.data   0x00000000 __sodEnd
@@ -638,14 +638,14 @@ SYMBOL TABLE
 0x00080c64 l   .ctors     0x00000000 .ctors
 0x00000018 l   .trap_info 0x00000000 .trap_info
 0x000801f4 g f .text      0x000001b8 debug_printf
-0x00080ce0 g O .dp.bss.4  0x00000004 _ZN2XC14tileAppStartedE
+0x00080ce0 g O .dp.bss.4  0x00000004 _ZN2XC15tileMainStartedE
 0x000806c4 g f .text      0x00000012 atexit
-0x0008017c l   .text      0x00000000 $s.857
-0x0008018c l   .text      0x00000000 $s.858
-0x000801c0 l   .text      0x00000000 $s.859
+0x0008017c l   .text      0x00000000 $s.860
+0x0008018c l   .text      0x00000000 $s.861
+0x000801c0 l   .text      0x00000000 $s.862
 0x00000000 l F *ABS*      0x00000000 debug_printf.c
-0x00001e42 l   .debug_info 0x00000000 .debug_info
-0x00000295 l   .debug_abbrev 0x00000000 .debug_abbrev
+0x00001e66 l   .debug_info 0x00000000 .debug_info
+0x0000028a l   .debug_abbrev 0x00000000 .debug_abbrev
 0x00000385 l   .debug_line 0x00000000 .debug_line
 0x00000848 l   .debug_str 0x00000000 .debug_str
 0x000000f0 l   .debug_loc 0x00000000 .debug_loc
@@ -675,8 +675,8 @@ SYMBOL TABLE
 0x000801f4 l   .text      0x00000000 $s.369
 0x000803ac l   .text      0x00000000 $s.370
 0x00000000 l F *ABS*      0x00000000 XC_I2C_master.cpp
-0x0000212c l   .debug_info 0x00000000 .debug_info
-0x000003b9 l   .debug_abbrev 0x00000000 .debug_abbrev
+0x00002150 l   .debug_info 0x00000000 .debug_info
+0x000003ae l   .debug_abbrev 0x00000000 .debug_abbrev
 0x0000075f l   .debug_line 0x00000000 .debug_line
 0x00000848 l   .debug_str 0x00000000 .debug_str
 0x000003fb l   .debug_loc 0x00000000 .debug_loc
@@ -783,8 +783,8 @@ SYMBOL TABLE
 0x00000001 l   *ABS*      0x00000000 __dtor_XCPortUndefined.maxcores
 0x00000000 l   *ABS*      0x00000000 __dtor_XCPortUndefined.maxtimers
 0x00000000 l   *ABS*      0x00000000 __dtor_XCPortUndefined.maxchanends
-0x0000a6f2 l   .debug_info 0x00000000 .debug_info
-0x000007aa l   .debug_abbrev 0x00000000 .debug_abbrev
+0x0000a73a l   .debug_info 0x00000000 .debug_info
+0x00000794 l   .debug_abbrev 0x00000000 .debug_abbrev
 0x00000887 l   .debug_line 0x00000000 .debug_line
 0x00000848 l   .debug_str 0x00000000 .debug_str
 0x00001ac3 l   .debug_loc 0x00000000 .debug_loc
@@ -944,10 +944,10 @@ SYMBOL TABLE
 0x00080c68 l   .ctors     0x00000000 .ctors
 0x00000030 l   .trap_info 0x00000000 .trap_info
 0x00008002 g   *ABS*      0x00000000 _local_tile_id
-0x0008041c l   .text      0x00000000 $s.3065
-0x0008042c l   .text      0x00000000 $s.3083
-0x00080450 l   .text      0x00000000 $s.3084
-0x0008045c l   .text      0x00000000 $s.3085
+0x0008041c l   .text      0x00000000 $s.3073
+0x0008042c l   .text      0x00000000 $s.3091
+0x00080450 l   .text      0x00000000 $s.3092
+0x0008045c l   .text      0x00000000 $s.3093
 0x00000000 l F *ABS*      0x00000000 /Users/fabrice/github/NAX1/lib_xcpp/lib_xcpp/src/XC_schedulerYield.S
 0x00000012 g   *ABS*      0x00000000 XCSchedulerYield.nstackwords
 0x00000008 g   *ABS*      0x00000000 free.nstackwords
@@ -958,12 +958,12 @@ SYMBOL TABLE
 0x00000000 g   *ABS*      0x00000000 XCSchedulerYield.maxchanends
 0x00000000 g   *ABS*      0x00000000 free.maxchanends
 0x00000000 l F *ABS*      0x00000000 XC_scheduler.c
-0x0000eebc l   .debug_info 0x00000000 .debug_info
-0x00000c2b l   .debug_abbrev 0x00000000 .debug_abbrev
+0x0000ef53 l   .debug_info 0x00000000 .debug_info
+0x00000c0a l   .debug_abbrev 0x00000000 .debug_abbrev
 0x00000ade l   .debug_line 0x00000000 .debug_line
 0x00000848 l   .debug_str 0x00000000 .debug_str
 0x00002068 l   .debug_loc 0x00000000 .debug_loc
-0x000028a8 l   .debug_ranges 0x00000000 .debug_ranges
+0x000028c0 l   .debug_ranges 0x00000000 .debug_ranges
 0x00080c30 l   .cp.rodata.cst4 0x00000000 .cp.rodata.cst4
 0x0000004c g   *ABS*      0x00000000 XCSchedulerCreateTCB_.nstackwords
 0x00000008 g   *ABS*      0x00000000 malloc.nstackwords
@@ -1065,12 +1065,12 @@ SYMBOL TABLE
 0x000804dc l   .text      0x00000000 $s.6
 0x000804f0 l   .text      0x00000000 $s.7
 0x00000000 l F *ABS*      0x00000000 xscope_shared_c.c
-0x0000f274 l   .debug_info 0x00000000 .debug_info
-0x00000d72 l   .debug_abbrev 0x00000000 .debug_abbrev
+0x0000f30b l   .debug_info 0x00000000 .debug_info
+0x00000d51 l   .debug_abbrev 0x00000000 .debug_abbrev
 0x00000b81 l   .debug_line 0x00000000 .debug_line
 0x00000848 l   .debug_str 0x00000000 .debug_str
 0x00002140 l   .debug_loc 0x00000000 .debug_loc
-0x00002900 l   .debug_ranges 0x00000000 .debug_ranges
+0x00002918 l   .debug_ranges 0x00000000 .debug_ranges
 0x00080500 g f .text      0x00000010 xscope_lock_init
 0x00000000 g   *ABS*      0x00000000 xscope_lock_init.nstackwords
 0x00000001 g   *ABS*      0x00000000 xscope_lock_init.maxcores
@@ -1117,12 +1117,12 @@ SYMBOL TABLE
 0x00080550 l   .text      0x00000000 $s.13
 0x00000000 l F *ABS*      0x00000000 xscope_api.c
 0x00080c94 g O .dp.data   0x00000004 __sodChan
-0x0000f40f l   .debug_info 0x00000000 .debug_info
-0x00000e64 l   .debug_abbrev 0x00000000 .debug_abbrev
+0x0000f4a6 l   .debug_info 0x00000000 .debug_info
+0x00000e43 l   .debug_abbrev 0x00000000 .debug_abbrev
 0x00000d12 l   .debug_line 0x00000000 .debug_line
 0x00000848 l   .debug_str 0x00000000 .debug_str
 0x00002148 l   .debug_loc 0x00000000 .debug_loc
-0x00002958 l   .debug_ranges 0x00000000 .debug_ranges
+0x00002970 l   .debug_ranges 0x00000000 .debug_ranges
 0x00080560  wf .text      0x00000008 xscope_user_init
 0x00000000  w  *ABS*      0x00000000 xscope_user_init.nstackwords
 0x00000001  w  *ABS*      0x00000000 xscope_user_init.maxcores
@@ -1582,12 +1582,12 @@ SYMBOL TABLE
 0x00000000 l   *ABS*      0x00000000 xscope_gettime.locnoglobalaccess
 0x00000000 l   *ABS*      0x00000000 xscope_start_ref_clock.locnoglobalaccess
 0x00000000 l   *ABS*      0x00000000 xscope_stop_ref_clock.locnoglobalaccess
-0x0000fb0f l   .debug_info 0x00000000 .debug_info
-0x00000fd2 l   .debug_abbrev 0x00000000 .debug_abbrev
+0x0000fba6 l   .debug_info 0x00000000 .debug_info
+0x00000fb1 l   .debug_abbrev 0x00000000 .debug_abbrev
 0x00000fd7 l   .debug_line 0x00000000 .debug_line
 0x00000812 l   .debug_str 0x00000000 .debug_str
 0x0000238e l   .debug_loc 0x00000000 .debug_loc
-0x00002a28 l   .debug_ranges 0x00000000 .debug_ranges
+0x00002a40 l   .debug_ranges 0x00000000 .debug_ranges
 0x00000004 g   *ABS*      0x00000000 xscope_data_from_host.nstackwords
 0x00000001 g   *ABS*      0x00000000 xscope_data_from_host.maxcores
 0x00000000 g   *ABS*      0x00000000 xscope_data_from_host.maxtimers
@@ -1874,9 +1874,9 @@ SYMBOL TABLE
 0x00080112 l   .fini      0x00000000 .fini
 0x000800e4 l   .init      0x00000000 $s.4
 0x00080112 l   .fini      0x00000000 $s.5
-0x00000000 l F *ABS*      0x00000000 _ir.xc7A7rXg
+0x00000000 l F *ABS*      0x00000000 _ir.xcGwy2wq
 0x000000e8 l   .trap_info 0x00000000 .trap_info
-0x00000000 l F *ABS*      0x00000000 _sod.xcLsKqBQ
+0x00000000 l F *ABS*      0x00000000 _sod.xccEWnSx
 0x00080c98 l   .dp.data   0x00000000 .dp.data
 0x00080c70 g   .bss       0x00000000 _ebss
 
@@ -3371,14 +3371,14 @@ SYMBOL TABLE
 0x00000006 g   *ABS*      0x00000000 _default_clkblk
 0x00000001 g   *ABS*      0x00000000 _cmdline_buffer_bytes
 0x00000000 g   *ABS*      0x00000000 XSCOPE_REDIRECT_IO_MODE
-0x00000000 l F *ABS*      0x00000000 _sleep.sE7ZRVk
+0x00000000 l F *ABS*      0x00000000 _sleep.sSrwWwr
 0x00080000 g f .text      0x00000000 _start
 0x00080008 g   .text      0x00000000 _DoSyscall
 0x00080000 l   .text      0x00000000 $s.1
 0x00000000 g   *ABS*      0x00000000 __main_default_network
-0x00000000 l F *ABS*      0x00000000 _ir.xcbvIVBZ
+0x00000000 l F *ABS*      0x00000000 _ir.xc1G4ILA
 0x00000000 l   .trap_info 0x00000000 .trap_info
-0x00000000 l F *ABS*      0x00000000 _sod.xc7PAabo
+0x00000000 l F *ABS*      0x00000000 _sod.xcjHYKnj
 0x0008000c l   .dp.data   0x00000000 .dp.data
 0x0008000c g   .dp.data   0x00000000 __sodFlag
 0x00080010 g   .dp.data   0x00000000 __sodEnd

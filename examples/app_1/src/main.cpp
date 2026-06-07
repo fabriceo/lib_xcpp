@@ -14,7 +14,7 @@ void debug_printf(char const fmt[], ...) asm("debug_printf");
 
 #include "XC_core.hpp"
 
-XCPort P8C ( XS1_PORT_8C, XCPort::OUTPUT_DRIVE, 1 );
+XCPort P8C ( XS1_PORT_8C, XC::OUTPUT_DRIVE, 1 );
 
 
 volatile unsigned x;
