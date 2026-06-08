@@ -1770,7 +1770,8 @@ namespace XC {
   };
 
 //create a task linked to the given synchronizer, for launching a function with a potential parameter
-inline void getCoreSyncStart(const unsigned sync, const void * addr, void * stack, const void * param = nullptr) {
+//noinline because registers will be modified by the indirect call "bla r1"
+static XC_NOINLINE void getCoreSyncStart(unsigned sync, void * addr, void * stack, void * param = nullptr) {
     asm volatile(
         "getst r11, res[ %3 ]        \n\t"     //get synchronized task
         "set t[ r11 ]:r0, %0         \n\t"

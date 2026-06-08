@@ -2,9 +2,6 @@
 #include <platform.h>
 #include "XC_core.hpp"
 
- unsigned XCtimeStart1;
- unsigned XCtimeStart2;
-
 namespace XC {
     //zero or the tileID once an task is about to started.
     TileID_t tileMainStarted;
@@ -163,8 +160,8 @@ XCPortBit       XCPortBitUndefined;
 XCChanend       XCChanendUndefined;
 XCChanendPort   XCChanendPortUndefined;
 
-//trampoline C functions using CPP base functions
 extern "C" { 
+    //trampoline C functions using CPP base functions
     int XCwaitTimeAfter(const int target)  { return XC::waitTimeAfter(target); }
     int XCdelayTicks(const unsigned ticks) { return XC::delayTicks(ticks); }
     int XCdelaySyncTicks(int & timer, const unsigned ticks) { return XC::delaySyncTicks(timer,ticks); }
@@ -199,7 +196,7 @@ extern "C" {
     int XCbeforeMain_(char * cmd, unsigned size) { 
         XC::cmdLinePtr = cmd; XC::cmdLineSize = size;
         //this will fill XC::afterMain and tileMainStarted both with local_tile_id
-        XC::setTileAppStarted();
+        XC::setTileMainStarted();
         XC::resetTimeTile();
         return 0;
     }
@@ -207,6 +204,7 @@ extern "C" {
 
     //overload weak symbol. this routine is executed at the begining of _startExit
     //after all the constructor calls and just before the main entry point
+    //the parameter "size" is fed (or not) whith compiler option -fcmdline-buffer-bytes=xxx
     int _get_cmdline(char * cmd, unsigned size) {
         return XCbeforeMain(cmd,size);
     }
