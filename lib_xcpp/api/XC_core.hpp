@@ -1160,7 +1160,7 @@ public:
     //test if timer set in the future is now finished.
     bool finished() { return get() >= 0; }
     //test if timer set in the future is now finished. if so then rearm it for same period as last
-    bool finishedRearm() { bool res = (get() >= 0); if (res) rearm(); return res; }
+    bool finishedRearm() { bool res = finished(); if (res) rearm(); return res; }
     //test if timer set in the future is now finished. if so then rearm it for same regular period as last
     bool finishedRearmSync() { bool res = (get() >= 0); if (res) rearmSync(); return res; }
     //test if timer set in the future is still not finished
