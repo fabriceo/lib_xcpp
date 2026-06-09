@@ -304,7 +304,7 @@ namespace XC {
       struct lh_s  {  unsigned lo; int hi; } lh;
       struct ulh_s {  unsigned lo; unsigned hi; } ulh;
       unsigned u[2]; int i[2]; char ch[8]; short s[4]; unsigned short us[4];
-      struct XC_PACKED bit_s { unsigned x:1; } b[64];
+      //
   } LongLong_t;
   const int x = sizeof(LongLong_t);
   //assembly routine to optimze code requiring double size access
