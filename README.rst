@@ -22,12 +22,12 @@ This is the main C++ library used in NAX1 audio analyzer project.
 Features
 ********
 
-mainly Objects to create and use ports, chanend, timers.
-Inline routines for most usefull assembly opcodes.
-helpers for select stement and event management.
-equivalent par { } statement with object jobs and onejob.
+Collection of objects to create and use ports, chanend, timers...
+Inline routines for most assembly opcodes.
+helpers for select statement and event management.
+Equivalent object for par { } statement.
 Cooperative scheduler (yield).
-I2C master et SPI master
+I2C master et SPI master.
 
 ************
 Known Issues or limitations

@@ -1902,13 +1902,24 @@ struct jobs {
     }
 };
 
+//software version of the xcore crc32 instruction
+inline void crc32_(unsigned int & Crc, unsigned int Data, unsigned int poly) {
+ for (unsigned i = 0; i < 32; i++) {
+    asm volatile("###crc2_:");
+     int xorBit = (Crc & 1);
+     Crc >>= 1;
+     Crc |= ((Data & 1) << 31);
+     Data >>= 1;
+     if (xorBit) Crc ^= poly;
+ }
+ }
 
-//calc crc for a given array and size
+//calc crc for a given array and size (size should be in words not bytes)
 inline unsigned calcCRC(void * addr, unsigned size) {
-    unsigned * p = (unsigned*)addr;
+    unsigned int * p = (unsigned int *)addr;
     const unsigned int poly = 0xEDB88320;
     unsigned int crc = 0xFFFFFFFF;
-    for (int i=0; i<size; i++,p++) XC::crc32(crc,*p,poly);
+    for (int i=0; i<size; i++,p++) XC::crc32( crc, *p, poly);
     return crc ? crc : poly;
 }
 
