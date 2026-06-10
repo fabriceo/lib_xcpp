@@ -23,9 +23,10 @@ Features
 ********
 
 mainly Objects to create and use ports, chanend, timers.
-inline routines for most usefull assembly opcodes.
-helpers for select stement and event management
-cooperative scheduler (yield)
+Inline routines for most usefull assembly opcodes.
+helpers for select stement and event management.
+equivalent par { } statement with object jobs and onejob.
+Cooperative scheduler (yield).
 I2C master et SPI master
 
 ************
@@ -33,7 +34,7 @@ Known Issues or limitations
 ************
 
   * None
-  no solution (yet) for par { } equivalent : requires **xcore.h**
+
 
 **************
 Required Tools
