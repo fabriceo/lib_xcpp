@@ -1,14 +1,15 @@
 #ifndef _XC_TYPES_ENUMS_HPP_
 #define _XC_TYPES_ENUMS_HPP_
 
-#include <xs1.h>
-
 #include "XC_conf.hpp"
 
 #include "XC_helpers.hpp"
 
 namespace XC {
 //some basic types used in XC classes
+
+    typedef enum : uint8_t  { false8, true8 } bool8;
+    typedef enum : uint32_t { false32, true32 } bool32;
 
     typedef enum { tileNull = 0,
         tile0 = 0x8002, tile1 = 0x8003,

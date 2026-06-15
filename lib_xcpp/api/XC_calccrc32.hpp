@@ -6,19 +6,20 @@
 #include "XC_asm.hpp"
 
 namespace XC {
+
 //software version of the xcore crc32 instruction
-inline void crc32_(unsigned int & Crc, unsigned int Data, unsigned int poly) {
+inline void crc32sw(unsigned int & Crc, unsigned int Data, unsigned int poly) {
  for (unsigned i = 0; i < 32; i++) {
-    asm volatile("###crc2_:");
      int xorBit = (Crc & 1);
      Crc >>= 1;
-     Crc |= ((Data & 1) << 31);
+     Crc |= (Data << 31);
      Data >>= 1;
      if (xorBit) Crc ^= poly;
  }
  }
 
-//calc crc for a given array and size (size should be in words not bytes)
+//calc crc for a given array and size (size must be in words not bytes)
+//in case of zero, returns poly
 inline unsigned calcCRC(void * addr, unsigned size) {
     unsigned int * p = (unsigned int *)addr;
     const unsigned int poly = 0xEDB88320;
@@ -29,10 +30,10 @@ inline unsigned calcCRC(void * addr, unsigned size) {
 
 //compute a crc on multiple 32 bits words for any record of class T.
 //possibility to exclude some words at the begining with delta >0 or from the end with delta<0
+//object is
 template<class T>
 unsigned calcCRCany(T &rec, int delta = 0) {
     unsigned int * p = (unsigned *)&rec;
-    if ((unsigned)p & 3) __builtin_trap();
     unsigned int size = (sizeof(T)+3)/4;
     if (delta > 0) { size -= delta; p += delta; } else size -= (-delta);
     const unsigned int poly = 0xEDB88320;

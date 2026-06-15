@@ -50,6 +50,8 @@ namespace XC {
         proxy    operator[] (const unsigned i) { return proxy(word,i); }
     };
 
+    //useful to print all the bit of a word either as 1 / 0 or plein text
+    //see XC_core.cpp
     char * bitFieldToStr(const char * str[], unsigned val, unsigned max, unsigned invert = 0);
 };
 

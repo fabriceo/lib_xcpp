@@ -14,20 +14,19 @@
 class XCClock;
 
 // object representing a physical port 1,4,8,16 or 32 bits
+// when port is writen with outd(), the data is shadowed in its "d" register
 class XCPort : public XCResourceID {
     XC_UNUSED const XC::TileID_t tileID;
 public:
-    //port configuration
-    //typedef enum { UNUSED, UNDEFINED, INPUT, INPUT_PULLUP, INPUT_PULLDOWN, OUTPUT, OUTPUT_DRIVE = OUTPUT, OUTPUT_PULLUP, OUTPUT_PULLDOWN  } PortMode_t;
+    //possibility to use XC::portmode or XCPort::portmode
     typedef XC::PortMode_t PortMode_t;
-    //using PortMode_t = XC::PortMode_t;
     //gives possibility to declare a port object without giving its address yet.
     XCPort() : XCResourceID(0), tileID(XC::tileNull) { }
 
     //defines a port with its adress using predefined XS1_PORT_xx
     XCPort(unsigned p) : XCResourceID(p), tileID(XC::tileNull) { }
         
-    //defines a port with its adress and the operating mode, not tile specified
+    //defines a port with its adress and the operating mode, no tile specified
     XCPort(unsigned p, PortMode_t mode_) : XCResourceID(p), tileID(XC::tileNull) {  
         if (XC::tileMainStarted == 0) __builtin_trap(); //cannot initialize a global port defined without specific tile
         setMode(mode_);
@@ -45,51 +44,35 @@ public:
             if (t != XC::tileMainStarted) __builtin_trap();
         } else {
             //this is a global declaration. check if compatible with this tileID
-            if (t != XC::local_tile_id()) this->addr = 0; //cannot be used on this tile, this would trigger an error if used
+            if (t != XC::local_tile_id()) this->addr = 0; //cannot be used on this tile, addr set to 0 will trigger an exception if used anyway
         }
     }
 
     //defines a port with its tile adress and the operating mode
-    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_) : XCResourceID(p), tileID(t) { 
-        if ( XC::tileMainStarted ) {
-            //check if a local port declaration is done with same tileID
-            if (t != XC::tileMainStarted) __builtin_trap();
-        } else {
-            //this is a global declaration. check if compatible with this tileID
-            if (t != XC::local_tile_id()) {
-                this->addr = 0; //cannot be used on this tile, this would trigger an error if used
-                return; }
-        }
-        setMode(mode_); 
+    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_) : XCPort(t,p) { 
+        if (addr) setMode(mode_); 
     }
-    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_, unsigned initial) : XCResourceID(p), tileID(t) { 
-        if ( XC::tileMainStarted ) {
-            //check if a local port declaration is done with same tileID
-            if (t != XC::tileMainStarted) __builtin_trap();
-        } else {
-            //this is a global declaration. check if compatible with this tileID
-            if (t != XC::local_tile_id()) {
-                this->addr = 0; //cannot be used on this tile, this would trigger an error if used
-                return; }
-        }
-        setMode(mode_, initial); 
+
+    XCPort(XC::TileID_t t, unsigned p, PortMode_t mode_, unsigned initial) : XCPort(t,p) { 
+        if (addr) setMode(mode_, initial); 
     }
 
     //destructor    
     ~XCPort() { if (addr) { free(); } }
+
     //sets the port mode.
     XCPort&  setMode(PortMode_t mode_) {
         asm volatile("### setMode(PortMode_t mode_)");
         switch (mode_) {
             case XC::UNUSED:            setInUseOff(); break;
-            default :           //fallthrough
+            default :               //fallthrough
             case XC::UNDEFINED :    //fallthrough    
             case XC::INPUT:             enable(); break;
             case XC::INPUT_PULLUP :     enable().setPullUp();   break;
             case XC::INPUT_PULLDOWN :   enable().setPullDown(); break;
             case XC::OUTPUT_DRIVE:      enable().setDrive();    break;
-            case XC::OUTPUT_PULLUP :    enable().set().setPullUp();   break;
-            case XC::OUTPUT_PULLDOWN :  enable().clr().setPullDown(); break;
+            case XC::OUTPUT_PULLUP :    enable().set().setPullUp();   break;    //port is set to 1 by default so the pull up is seen on the output
+            case XC::OUTPUT_PULLDOWN :  enable().clr().setPullDown(); break;    //port is set to 0 by default so the pull down is seen on the output
         }
         return *this;
     }
@@ -98,7 +81,7 @@ public:
         asm volatile("### setMode(PortMode_t mode_, unsigned initial)");
         switch (mode_) {
             case XC::UNUSED:            setInUseOff(); break;
-            default :           //fallthrough
+            default :               //fallthrough
             case XC::UNDEFINED :    //fallthrough
             case XC::INPUT:             enable().setd(initial); break;   //should do "in" to place it in input mode, but not sure if clk is started
             case XC::INPUT_PULLUP :     enable().setd(initial).setPullUp();   break;
@@ -160,11 +143,11 @@ public:
     //tbd setci(0x17)
     XCPort&  clrBuffer()    { setc(0x17);   return *this; }
     //sets the port in drive mode : any 0 or 1 will be outputed straight on the pin
-    XCPort&  setDrive()    { setci(0x03);   return *this; }
+    XCPort&  setDrive()     { setci(0x03);   return *this; }
     //sets the port in pullup mode, only 0 will be outputed straight
-    XCPort&  setPullUp()   { setc(0x13);   return *this; }
+    XCPort&  setPullUp()    { setc(0x13);   return *this; }
     //sets the port in pulldown mode, only 1 will be outputed straight
-    XCPort&  setPullDown() { setci(0x0B);   return *this; }
+    XCPort&  setPullDown()  { setci(0x0B);   return *this; }
     //Synchronise with a port to ensure all data has been output. 
     //This instruction completes once all data has been shifted out of the port, 
     // and the last port width of data has been held for one clock period.
@@ -185,44 +168,45 @@ public:
     XCPort&  setCondNotEqual(const unsigned x) { setTriggerInNotEqual(x); return *this; }
 
     XCPort&  outd(const unsigned x)          { XCResourceID::outd(x); return *this; }
-    XCPort&  outdOr(const unsigned mask)     { asm volatile("###outdOr()"); XCResourceID::outdOr(mask); return *this; }
+    XCPort&  outdOr(const unsigned mask)     { XCResourceID::outdOr(mask); return *this; }
     XCPort&  outdAnd(const unsigned mask)    { XCResourceID::outdAnd(mask); return *this; }
     XCPort&  outdAndNot(const unsigned mask) { XCResourceID::outdAndNot(mask); return *this; }
-    XCPort&  outdAndOr(const unsigned and_, const unsigned or_) { XCResourceID::outdAndOr(and_,or_); return *this; }
-    XCPort&  outdXor(const unsigned mask)  { XCResourceID::outdXor(mask); return *this; }
+    XCPort&  outdAndOr(const unsigned and_, const unsigned or_) { 
+                                               XCResourceID::outdAndOr(and_,or_); return *this; }
+    XCPort&  outdXor(const unsigned mask)    { XCResourceID::outdXor(mask); return *this; }
     //set the value of the port (value NOT store in shadow register)
-    XCPort&  out(const unsigned x) { XCResourceID::out(x); return *this; }
+    XCPort&  out(const unsigned x)           { XCResourceID::out(x); return *this; }
     //output the lsb part of the provided number (according to buffer size) and return the new shifted value
     unsigned outShiftRight(const unsigned x) { unsigned temp;
         asm volatile("outshr res[%1],%0":"=r"(temp):"r"(addr),"0"(x)); return temp; }
     XCPort&  outPartialWord(const unsigned x,const unsigned bits) { 
         asm volatile("outpw res[%0],%1,%2"::"r"(addr),"r"(x),"r"(bits)); return *this; }
     //sets the value of the port (including its shadow variable). same as out(x)
-    XCPort&  set(const unsigned x) { outd(x); return *this; }
+    XCPort&  set(const unsigned x)           { outd(x); return *this; }
     //sets the value of the shadow register. port unchanged
-    XCPort&  setd(const unsigned x) { XCResourceID::setd(x); return *this; }
+    XCPort&  setd(const unsigned x)          { XCResourceID::setd(x); return *this; }
     //sets the value of the port (including its shadow variable). all bits sets to 1
-    XCPort&  set() { unsigned mask = (1u << size())-1; outd(mask); return *this; }
+    XCPort&  set()                           { unsigned mask = (1u << size())-1; outd(mask); return *this; }
     //clears the value of the port (including its shadow variable). all bits sets to 0
-    XCPort&  clr() { set(0); return *this; }
+    XCPort&  clr()                           { set(0); return *this; }
     //applies an AND and a OR to the port (based on its shadow value)
     XCPort&  outAndOr(unsigned and_, unsigned or_) { return outdAndOr(and_,or_);}
     //applies an AND to the port (based on its shadow value)
-    XCPort&  outAndNot(unsigned and_) { return outdAndNot(and_);}
+    XCPort&  outAndNot(unsigned and_)        { return outdAndNot(and_); }
     //applies an AND to the port (based on its shadow value)
-    XCPort&  outAnd(unsigned and_) { return outdAnd(and_);}
+    XCPort&  outAnd(unsigned and_)           { return outdAnd(and_);}
     //applies an OR to the port (based on its shadow value)
-    XCPort&  outOr(unsigned or_)   { asm volatile("###outOr()");  return outdOr(or_);}
+    XCPort&  outOr(unsigned or_)             { return outdOr(or_);}
     //applies a XOR to the port (based on its shadow value)
-    XCPort&  outXor(unsigned xor_) { return outdXor(xor_);}
+    XCPort&  outXor(unsigned xor_)           { return outdXor(xor_);}
     //sets the port with the mask, using outOr(x) and shadow value
-    XCPort&  setMask(const unsigned x) { asm volatile("###setMask()"); outOr(x);  return *this; }
+    XCPort&  setMask(const unsigned x)       { return outOr(x); }
     //clears the port with the mask, using outAnd(x) and shadow value
-    XCPort&  clrMask(const unsigned x) { outAndNot(x); return *this; }
+    XCPort&  clrMask(const unsigned x)       { return outAndNot(x); }
     //sets the port with given bit set to one
-    XCPort&  setBit( const unsigned x) { outOr(1UL << x); return *this; }
+    XCPort&  setBit( const unsigned x)       { return outOr(1UL << x); }
     //sets the port with given bit cleared
-    XCPort&  clrBit( const unsigned x) { outAndNot(1UL << x); return *this; }
+    XCPort&  clrBit( const unsigned x)       { return outAndNot(1UL << x); }
     //use setTriggerInEqual(mask) to define the condition and in() to wait for it
     unsigned waitEqual(const unsigned mask)    { setTriggerInEqual(mask);    return in();  }
     //use setTriggerInNotEqual(mask) to define the condition and in_() to wait for it
@@ -251,15 +235,13 @@ public:
     XCPort& operator =  (const XCPort&)     = default;
     XCPort& operator =  (XCPort&&) noexcept = default;
     //set a port value when an assignement is made with a integer value. also stored in shadow memory
-    XCPort& operator =  (unsigned rhs) { set(rhs);      return *this; }
-    XCPort& operator |= (unsigned rhs) { outdOr(rhs);   return *this; }
-    XCPort& operator &= (unsigned rhs) { outdAnd(rhs);  return *this; }
-    XCPort& operator ^= (unsigned rhs) { outdXor(rhs);  return *this; }
+    XCPort& operator =  (unsigned rhs) { return set(rhs); }
+    XCPort& operator |= (unsigned rhs) { return outdOr(rhs); }
+    XCPort& operator &= (unsigned rhs) { return outdAnd(rhs); }
+    XCPort& operator ^= (unsigned rhs) { return outdXor(rhs); }
 
     //having a port name inside an expression will return the port shadow value (last output)
-    operator unsigned ()  const { 
-        asm volatile("### XCPort::operator unsigned ()");
-        return getd(); }
+    operator unsigned ()  const { return getd(); }
     //having a port name with braket () inside an expression will return the in() value (not touching shadow value)
     unsigned operator() () { return in(); }
 
@@ -294,6 +276,7 @@ public:
     unsigned operator () (unsigned i) const { return in(i); }
 
     unsigned countClock(XCClock& clk, unsigned ticks);
+    //extension for protocol handling. See XC_lock.hpp
     XCPort&  protocolInHandshake(XCPort& readyIn, XCPort& readyOut, XCClock& clk);
     XCPort&  protocolOutHandshake(XCPort& readyIn, XCPort& readyOut, XCClock& clk, unsigned initial);
     XCPort&  protocolInStrobedMaster(XCPort& readyOut, XCClock& clk);

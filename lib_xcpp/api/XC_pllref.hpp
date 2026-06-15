@@ -5,7 +5,8 @@
 
 namespace XC {
   namespace PLL {
-    //PROTOTYPES defined in XC_core.cpp
+    //PROTOTYPES
+    //function implemented in XC_core.cpp
 
     //compute number of ticks per seconds based on the pll register value
     unsigned computeTicks(const unsigned pll);
