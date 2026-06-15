@@ -1,5 +1,6 @@
 #include <xs1.h>
 #include <platform.h>
+
 #include "XC_core.hpp"
 
 namespace XC {

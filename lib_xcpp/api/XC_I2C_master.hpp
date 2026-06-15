@@ -4,6 +4,7 @@
 #include <stdlib.h>         //for malloc and free
 #include <string.h>         //for memset
 #include <stdarg.h>         //for va_start, va_arg, va_end
+
 #include "XC_core.hpp"
 
 //with this test, it is not mandatory to link lib_loggig with lib_xcpp
