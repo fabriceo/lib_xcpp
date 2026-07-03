@@ -4,6 +4,7 @@
 #include "XC_conf.hpp"
 
 #include "XC_types_enums.hpp"
+#include "XC_externs.hpp"
 #include "XC_asm.hpp"
 #include "XC_ressource.hpp"
 
@@ -22,7 +23,7 @@ extern "C" void XC_USE_TIMER();
 #endif
 
 //point on a table of preallocated timer ressource (only for xC programs)
-extern volatile XC::Resource_t __timers[8];   
+
 
 //class to declare timer objects.
 //once an object is instanciated, the getLocal() or getRessource should be called 

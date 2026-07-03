@@ -17,16 +17,16 @@ public:
 #else
 private:
 #endif
-     XCPort & port;    //by reference as multiple XCPortBits can share the same port information and use its unique shadow value
+    XCPort & port;    //by reference as multiple XCPortBits can share the same port information and use its unique shadow value
     const unsigned bitMask;
     //const unsigned sizePort;
 public:
     XCPortBit() : port(XCPortUndefined),bitMask(0) {}
     XCPortBit(XCPort& p) : port(p), bitMask(1) { }
-    XCPortBit(XCPort& p, const unsigned bit_) : port(p), bitMask(1UL<<bit_) { }
+    XCPortBit(XCPort& p, const unsigned bit) : port(p), bitMask(1UL<<bit) { }
     XCPortBit(XCPortBit& pbit) : port(pbit.port), bitMask(pbit.bitMask) { }
 
-    XCPortBit& set()  { asm volatile("###set()"); port.setMask(bitMask); return *this; }
+    XCPortBit& set()  { port.setMask(bitMask); return *this; }
     XCPortBit& clr()  { port.clrMask(bitMask); return *this; }
     XCPortBit& flip() { port.outdXor(bitMask); return *this; }
     XCPortBit& set(const unsigned x) { if (x) set(); else clr(); return *this; }
@@ -38,15 +38,12 @@ public:
     unsigned getMask()   const { return bitMask; }
     XCPort&  getPort()  { return port; }
     //default operator , using a pin name will return value stored in shadow memory
-    operator unsigned () const { asm volatile("### XCPortBit::operator unsigned ()");
-        return getd(); }
+    operator unsigned () const { return getd(); }
     //XCPortBit& operator = (const XCPortBit&) = default;
-    XCPortBit& operator = (const XCPortBit& rhs) { asm volatile("### XCPortBit::operator = (const XCPortBit& rhs)");
+    XCPortBit& operator = (const XCPortBit& rhs) { 
         if (rhs != *this) { set(rhs.getd()); } return *this; };
     XCPortBit& operator = (XCPortBit&&) noexcept = default;
-    XCPortBit& operator = (unsigned rhs) { asm volatile("### XCPortBit::operator = (unsigned rhs)");
-        set(rhs); return *this; }
-    unsigned operator () () { return in(); }
+    XCPortBit& operator = (unsigned rhs) { set(rhs); return *this; }
     unsigned waitPinEqual(const unsigned x)  {
         if (port.oneBit()) return port.waitEqual(x ? 1 : 0);
         else {

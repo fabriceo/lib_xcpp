@@ -4,7 +4,7 @@
 #include "XC_conf.hpp"
 
 #include "XC_types_enums.hpp"
-
+#include "XC_externs.hpp"
 #include "XC_asm.hpp"
 
 //extend the XC 32bits timer to 64bits, and manage reference_hz depending on real pll value
@@ -26,6 +26,7 @@ namespace XC {
     const static unsigned randomPoly = 0xEDB88320;   //0xEB31D82E seems better ?
 
     inline void randomInit() { randomBase = getTime(); }
+    inline void randomInit(const unsigned val) { randomBase = val; }
     inline int randomWhite() {
         unsigned  rnd = randomBase;
         // sugested in xmos application note, here : https://xcore.github.io/doc_tips_and_tricks/pseudo-random-numbers.html
@@ -65,7 +66,7 @@ namespace XC {
         //load time in intermediate registers with 64bits LDD instruction
         LongLong_t previous = { .ll = getTime64Ticks.ll };
         //maccu used as a single instruction to perform 64 bits addition of elapsed time
-        int elapsed = gettime() - previous.ulh.lo;
+        unsigned elapsed = gettime() - previous.ulh.lo;
         maccu(&previous.ull,elapsed,1);
         //store 64bit result in a single STD instruction
         getTime64Ticks.ll = previous.ull;

@@ -4,17 +4,21 @@
 #include "XC_core.hpp"
 
 namespace XC {
-    //zero or the tileID once an task is about to started.
+
+    //zero or the tileID once a task is started.
     TileID_t tileMainStarted;
     int tileTimeStamp;
     //used to test if constructor are launched before or after main(). contains tileID
     unsigned afterMain;
     unsigned cmdLineSize;
     char * cmdLinePtr;
+
     //used to store random number from cycle to cycle
     unsigned randomBase;
 
+    //represent the number of ref clock ticks per second. usefull when tuning cpu frequency with pll
     unsigned referenceHz = PLATFORM_REFERENCE_HZ;
+
     //micros factor is a 32 bit coefficient to be used in a long mul 
     //to convert ticks to microseconds, by taking msb of the 64bit result
     unsigned micros_factor = (1ULL << 32)/100ULL;                       //42949672
@@ -24,6 +28,7 @@ namespace XC {
     unsigned millis_factor = (1ULL << (32+millis_prediv))/100000ULL;    //10995116
 
     //this must be called to set the referenceHz when PLL is changed dynamically
+    //the factor for micro and millis function will be computed here
     void setReferenceHz(unsigned refHz) {
         if (refHz != referenceHz) {
             if (refHz == 0) refHz = PLATFORM_REFERENCE_HZ;

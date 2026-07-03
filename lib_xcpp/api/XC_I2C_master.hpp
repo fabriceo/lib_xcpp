@@ -8,12 +8,10 @@
 #include "XC_core.hpp"
 
 //with this test, it is not mandatory to link lib_loggig with lib_xcpp
-#if defined(DEBUG_PRINT_ENABLE) && (DEBUG_PRINT_ENABLE == 1)
+#if defined(DEBUG_PRINT_ENABLE) && (DEBUG_PRINT_ENABLE > 0)
 //#undef  DEBUG_UNIT
 //#define DEBUG_UNIT XC_I2C
-#include "debug_print.h"    //xmos standard library
-//add this function alias to avoid the warning specific to c++11
-//void debug_printf(char const fmt[], ...) asm("debug_printf");
+#include "debug_print.h"    //xmos standard library should be available due to define identified
 #else
 #define debug_printf(...)
 #endif

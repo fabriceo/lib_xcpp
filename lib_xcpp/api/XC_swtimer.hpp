@@ -21,13 +21,16 @@ private:
     long long ofset;
     long long srearm;
 public:
-    XCTimerMicros() : srearm(0) { }
+    XCTimerMicros() : ofset(0), srearm(0) { }
     XCTimerMicros(const long long future) { set(future); }
+    XCTimerMicros(const long long future, const long long initial) { set(future,initial); }
     //set the timer in the future and use the given value as a potential rearm value
     XCTimerMicros& set(const long long future) { srearm=future; ofset = XC::micros()+future; return *this; }
+    //set the timer in the future and use the given value as a potential rearm value
+    XCTimerMicros& set(const long long future, const long long initial) { srearm=future; ofset = XC::micros()+initial; return *this; }
     //clear the timer but do not change its (potential) rearm value
     XCTimerMicros& clr() { ofset = XC::micros(); return *this; }
-    //returns the time spend since last set(0) or clr().
+    //returns the time spend (positive) since last set(0) or clr().
     long long get() const { return XC::micros() - ofset; }
     //return the remaining time (positive) till set(time) is reached
     long long getLeft() { 
@@ -38,15 +41,16 @@ public:
     //set timer in the future with same value as last set()
     XCTimerMicros& rearm() { return set(srearm); }
     //set timer in the future to produce regular time (no drift) as last set()
-    XCTimerMicros& rearmSync() { ofset += srearm; return *this; }
+    XCTimerMicros& rearmSync() { if (ofset) ofset += srearm; else set(srearm); return *this; }
     //test if timer set in the future is now finished.
-    bool finished() { return get() >= 0; }
+    bool finished() { return (ofset==0) || (get() >= 0); }
+    bool notSetYet() { return (ofset == 0); }
     //test if timer set in the future is now finished. if so then rearm it for same period as last
     bool finishedRearm() { bool res = finished(); if (res) rearm(); return res; }
     //test if timer set in the future is now finished. if so then rearm it for same regular period as last
-    bool finishedRearmSync() { bool res = (get() >= 0); if (res) rearmSync(); return res; }
+    bool finishedRearmSync() { bool res = finished(); if (res) rearmSync(); return res; }
     //test if timer set in the future is still not finished
-    bool ongoing()  { return get() < 0; }
+    bool ongoing()  { return (ofset && (get() < 0)); }
     bool notFinished()  { return ongoing(); }
     XCTimerMicros& wait() { while (ongoing()) {} ; return *this; }
     XCTimerMicros& wait(const long long t) { 
@@ -69,7 +73,7 @@ private:
     long long ofset;
     long long srearm;
 public:
-    XCSWTimer() : srearm(0) { }
+    XCSWTimer() : ofset(0),srearm(0) { }
     XCSWTimer(const long long future) { set(future); }
     //set the timer in the future and use the given value as a potential rearm value
     XCSWTimer& set(const long long future) { srearm=future; ofset = TIME()+future; return *this; }
@@ -88,13 +92,13 @@ public:
     //set timer in the future to produce regular time (no drift) as last set()
     XCSWTimer& rearmSync() { ofset += srearm; return *this; }
     //test if timer set in the future is now finished.
-    bool finished() { return get() >= 0; }
+    bool finished() { return (ofset==0)||(get() >= 0); }
     //test if timer set in the future is now finished. if so then rearm it for same period as last
     bool finishedRearm() { bool res = (get() >= 0); if (res) rearm(); return res; }
     //test if timer set in the future is now finished. if so then rearm it for same regular period as last
-    bool finishedRearmSync() { bool res = (get() >= 0); if (res) rearmSync(); return res; }
+    bool finishedRearmSync() { bool res = finished(); if (res) rearmSync(); return res; }
     //test if timer set in the future is still not finished
-    bool ongoing()  { return get() < 0; }
+    bool ongoing()  { return (ofset && (get() < 0)); }
     bool notFinished()  { return ongoing(); }
     XCSWTimer& wait() { while (ongoing()) {} ; return *this; }
     XCSWTimer& wait(const long long t) { 
@@ -109,8 +113,9 @@ public:
     long long operator () () const { return get(); }
     operator long long () const    { return get(); }
 };
-
+//create a class using XC::micros as the timebase
 class XCSWTimerMicros : public XCSWTimer<XC::micros> { };
+//create a class using XC::millis as the timebase
 class XCSWTimerMillis : public XCSWTimer<XC::millis> { };
 
 

@@ -17,7 +17,8 @@
 
 #include <xs1.h>            //for get_logical_core_id()
 #include <stdlib.h>         //for malloc
-#if defined(DEBUG_PRINT_ENABLE) && (DEBUG_PRINT_ENABLE == 1)
+
+#if defined(DEBUG_PRINT_ENABLE) && (DEBUG_PRINT_ENABLE > 0)
 #include "debug_print.h"    //xmos standard library
 #else
 #define debug_printf(...)

@@ -58,11 +58,10 @@ public:
     }
 
     //destructor    
-    ~XCPort() { if (addr) { free(); } }
+    //not needed, create double entry on both tile without reason ~XCPort() { if (addr) { free(); } }
 
     //sets the port mode.
     XCPort&  setMode(PortMode_t mode_) {
-        asm volatile("### setMode(PortMode_t mode_)");
         switch (mode_) {
             case XC::UNUSED:            setInUseOff(); break;
             default :               //fallthrough
@@ -78,7 +77,6 @@ public:
     }
     //sets the port mode with an initial value
     XCPort&  setMode(PortMode_t mode_, unsigned initial) {
-        asm volatile("### setMode(PortMode_t mode_, unsigned initial)");
         switch (mode_) {
             case XC::UNUSED:            setInUseOff(); break;
             default :               //fallthrough
@@ -167,6 +165,9 @@ public:
     //define a conditional input based on inequality. same as setTriggerInNotEqual(x)
     XCPort&  setCondNotEqual(const unsigned x) { setTriggerInNotEqual(x); return *this; }
 
+    //set the value of the port (value NOT store in shadow register)
+    XCPort&  out(const unsigned x)           { XCResourceID::out(x); return *this; }
+    //set the value of the port and copy it to its "d" register as shadow memory
     XCPort&  outd(const unsigned x)          { XCResourceID::outd(x); return *this; }
     XCPort&  outdOr(const unsigned mask)     { XCResourceID::outdOr(mask); return *this; }
     XCPort&  outdAnd(const unsigned mask)    { XCResourceID::outdAnd(mask); return *this; }
@@ -174,14 +175,12 @@ public:
     XCPort&  outdAndOr(const unsigned and_, const unsigned or_) { 
                                                XCResourceID::outdAndOr(and_,or_); return *this; }
     XCPort&  outdXor(const unsigned mask)    { XCResourceID::outdXor(mask); return *this; }
-    //set the value of the port (value NOT store in shadow register)
-    XCPort&  out(const unsigned x)           { XCResourceID::out(x); return *this; }
     //output the lsb part of the provided number (according to buffer size) and return the new shifted value
     unsigned outShiftRight(const unsigned x) { unsigned temp;
         asm volatile("outshr res[%1],%0":"=r"(temp):"r"(addr),"0"(x)); return temp; }
     XCPort&  outPartialWord(const unsigned x,const unsigned bits) { 
         asm volatile("outpw res[%0],%1,%2"::"r"(addr),"r"(x),"r"(bits)); return *this; }
-    //sets the value of the port (including its shadow variable). same as out(x)
+    //sets the value of the port (including its shadow variable).
     XCPort&  set(const unsigned x)           { outd(x); return *this; }
     //sets the value of the shadow register. port unchanged
     XCPort&  setd(const unsigned x)          { XCResourceID::setd(x); return *this; }
@@ -189,7 +188,7 @@ public:
     XCPort&  set()                           { unsigned mask = (1u << size())-1; outd(mask); return *this; }
     //clears the value of the port (including its shadow variable). all bits sets to 0
     XCPort&  clr()                           { set(0); return *this; }
-    //applies an AND and a OR to the port (based on its shadow value)
+    //applies an AND and a OR to the port (based on its shadow value), same as outdAndOr
     XCPort&  outAndOr(unsigned and_, unsigned or_) { return outdAndOr(and_,or_);}
     //applies an AND to the port (based on its shadow value)
     XCPort&  outAndNot(unsigned and_)        { return outdAndNot(and_); }
@@ -219,18 +218,18 @@ public:
     //to measure difference between 2 , it is suggested to make 32bit substraction and then "and 0xFFFF" to get the exact difference
     unsigned getTriggerTime() const { int time; asm volatile("getts %0,res[%1]":"=r"(time):"r"(addr)); return time; }
     //return real value of the port pins, (not stored in local shadow value)
-    unsigned peek() const { unsigned res; asm volatile("peek %0,res[%1]":"=r"(res):"r"(addr)); return res; } //non volatile, as the resulting value may not be used by subsequent code
+    unsigned peek() const { unsigned res; asm volatile("peek %0,res[%1]":"=r"(res):"r"(addr)); return res; } 
     //return real value of a port pin, (not stored in local shadow value)
-    unsigned peek(const unsigned x) const { unsigned res; 
+    unsigned peekBit(const unsigned x) const { unsigned res; 
         asm volatile("peek %0,res[%1]":"=r"(res):"r"(addr)); return (res >> x) & 1; }
-    //return result of in() instruction. result NOT stored in shadow register
-    unsigned in() const { return XCResourceID::in(); }  //non volatile
-     //return a single bit result of in() instruction. result NOT stored in shadow register
-    unsigned in(const unsigned x) const { return (in() >> x) & 1;}
-    //returns the port (eventual) last out value, otherwise in())
+    //return result of in() instruction.
+    unsigned in() const { return XCResourceID::in(); } 
+     //return a single bit result of in() instruction. 
+    unsigned inBit(const unsigned x) const { return (in() >> x) & 1;}
+    //returns the port last out value
     unsigned getd() const { return XCResourceID::getd(); }
     //returns the port single bit (eventual) last out value, otherwise in())
-    unsigned getd(const unsigned x) const { return (getd() >> x) & 1; }
+    unsigned getdBit(const unsigned x) const { return (getd() >> x) & 1; }
     //keep default operator=
     XCPort& operator =  (const XCPort&)     = default;
     XCPort& operator =  (XCPort&&) noexcept = default;
@@ -264,7 +263,7 @@ public:
         // reading: implicit convert to unsigned
         operator unsigned () const { 
             asm volatile("### bitproxy::operator unsigned ()");
-            return port.getd(bit); }
+            return port.getdBit(bit); }
     };//bitproxy
 
     //this proxy operator is used to provide a braket assignement to one bit of the port
@@ -273,9 +272,11 @@ public:
     //braket operator [] return a bit from the shadow memory
     //unsigned operator [] (unsigned i) const { return getVal(i); }
     //braket operator () return a bit from the in() value
-    unsigned operator () (unsigned i) const { return in(i); }
+    unsigned operator () (unsigned i) const { return inBit(i); }
 
+    //count a number of clock ticks (aplied on this port) during a given delay
     unsigned countClock(XCClock& clk, unsigned ticks);
+
     //extension for protocol handling. See XC_lock.hpp
     XCPort&  protocolInHandshake(XCPort& readyIn, XCPort& readyOut, XCClock& clk);
     XCPort&  protocolOutHandshake(XCPort& readyIn, XCPort& readyOut, XCClock& clk, unsigned initial);

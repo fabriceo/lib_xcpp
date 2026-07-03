@@ -54,9 +54,9 @@
 #endif
 
 
-//set the adress of a function in a variable (only for extern "c" linkage)
+//set the adress of a function in a variable (only for extern "C" linkage)
 #define XC_FUNC_ADDRESS(_f,_n)     do { register unsigned _r asm("r11"); asm ("ldap %0," #_f : "=r"(_r)); _n=_r; } while(0)
-//set the stacksize of a function in a variable (only for extern "c" linkage)
+//set the stacksize of a function in a variable (only for extern "C" linkage)
 #define XC_FUNC_NSTACKWORDS(_f,_n) do { asm("ldc %0,  " #_f ".nstackwords"  : "=r"(_n) ); } while (0)
 #define XC_NSTACKWORDS(_f)  ( { unsigned s; asm ("ldc %0,  " #_f ".nstackwords"  : "=r"(s) ); s; } )
 #define XC_ADDRESS(_f)      ( { register unsigned _r asm("r11"); asm ("ldap %0," #_f : "=r"(_r)); _r; } )

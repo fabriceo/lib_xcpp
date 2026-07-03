@@ -14,6 +14,7 @@
 #ifdef __cplusplus
 
 #include "XC_types_enums.hpp"
+#include "XC_externs.hpp"
 #include "XC_helpers.hpp"
 #include "XC_tracer.hpp"
 #include "XC_asm.hpp"
