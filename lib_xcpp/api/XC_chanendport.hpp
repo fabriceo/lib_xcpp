@@ -46,6 +46,11 @@ public:
     XCChanendPort& checkCT_END()                { return checkCTi(XC::CT_END);   }
     XCChanendPort& checkCT_ACK()                { return checkCTi(XC::CT_ACK);   }
     XCChanendPort& checkCT_NACK()               { return checkCTi(XC::CT_NACK);  }
+    XCChanendPort& setPortReceived(unsigned value) { portValue = value; portReceived = true; return *this; }
+    XCChanendPort& rxacquire()                  { lockRx.acquire(); return *this; }
+    XCChanendPort& txacquire()                  { lockTx.acquire(); return *this; }
+    XCChanendPort& rxrelease()                  { lockRx.release(); return *this; }
+    XCChanendPort& txrelease()                  { lockTx.release(); return *this; }
     long long inLongLong()                      { return XCChanend::inLongLong(); }
 
 //Sending data to a Port listener:
@@ -117,7 +122,6 @@ public:
             res = portValue;
         } else
             res = inCT();   //assuming next token in chanend will be a port identifier
-        lockRx.release();
         return res;
     }
 
