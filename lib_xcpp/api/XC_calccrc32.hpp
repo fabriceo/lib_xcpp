@@ -27,6 +27,15 @@ inline void calcCRCblock(unsigned &crc, void * addr, unsigned size) {
     for (int i=0; i<size; i++,p++) XC::crc32( res, *p, poly);
     crc = res;
 }
+//calc crc for a given array and size (size must be in words not bytes)
+//crc should eventually be initialized with FFFFFFFF
+//the source array is copied in the destination array at the same time so the distination as same crc value
+inline void calcCRCblockCopy(unsigned int &crc, void * addr, unsigned size, void * dest) {
+    unsigned int * p = (unsigned int *)addr;
+    unsigned int * q = (unsigned int *)dest;
+    const unsigned int poly = 0xEDB88320;
+    for (int i=0; i<size; i++,p++,q++) XC::crc32( crc, (*q = *p), poly);
+}
 
 //calc crc for a given array and size (size must be in words not bytes)
 //in case of zero, returns poly

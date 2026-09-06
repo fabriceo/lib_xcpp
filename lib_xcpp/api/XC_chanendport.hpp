@@ -56,7 +56,7 @@ public:
 //Sending data to a Port listener:
 
     //send a token if the channel is not locked by another sender. return true if sent.
-    bool tryOutPort(unsigned ct) {
+    bool tryOutPort(const char ct) {
         if (lockTx.tryAcquire()) {
             outCT(ct);
             return true;            //keep locked status
@@ -65,15 +65,14 @@ public:
     }
 
     //acquire and lock the channel, and send a token
-    XCChanendPort& outPort(unsigned ct) {
-        lockTx.acquire();
-        outCT(ct);
-        return *this;
+    XCChanendPort& outPort(const char ct) {
+        return txacquire().outCT(ct);
     }
 
     //send a CT_END and release the Tx lock for the chanend
     XCChanendPort& outPortEND() { 
-        outCT_END(); lockTx.release(); return * this; }
+        return outCT_END().txrelease(); 
+    }
 
 //listening a Port
 
@@ -90,7 +89,7 @@ public:
     }
 
     //try acquire the rx lock and test if any token received corresponding to the given port
-    bool tryInPort(unsigned ct) {
+    bool tryInPort(const char ct) {
         if (lockRx.tryAcquire()) {
             if (testPort()) {
                 if (portValue == ct) {
@@ -98,45 +97,49 @@ public:
                     return true;            //keep lock acquired
                 }
             }
-            lockRx.release();
+            rxrelease();
         }
         return false;
     }
 
+    //retreive token form shadow memory otherwise from chanend itself
+    char getPort() {
+        char res;
+        rxacquire();
+        if (portReceived) {
+            portReceived = false;
+            res = portValue;
+        } else
+            res = inCT();   //always assuming next token in chanend will be a port identifier
+        return res;
+    }
+    
     // acquire the rx lock and wait if any token received corresponding to the given port
-    XCChanendPort& inPort(unsigned ct) {
+    XCChanendPort& inPort(const char ct) {
         while (tryInPort(ct) == false) { }
         return *this;
     }
 
     //execute a checkCTEND and release the Rx lock for the chanend
     XCChanendPort& checkPortEND() { 
-        checkCT_END(); lockRx.release(); return *this; }
-
-    //retreive token form shadow memory otherwise from chanend itself
-    unsigned getPort() {
-        unsigned res;
-        lockRx.acquire();
-        if (portReceived) {
-            portReceived = false;
-            res = portValue;
-        } else
-            res = inCT();   //assuming next token in chanend will be a port identifier
-        return res;
+        return checkCT_END().rxrelease(); 
     }
 
     //take any byte or token from the chanel and cancel it.
-    //stop and comes back when receiving a CT_END
+    //stop and comes back when CT_END is received
     XCChanendPort& flushEND() {
-        while(1) {
-            if (testCT()) {
-                char ct = inCT();
-                if (ct == XC::CT_END) break;
-            } else {
-                XC_UNUSED char ch = inByte();
+        if (lockRx.acquired()) {
+            while(1) {
+                char ch;
+                if (testCT()) {
+                    ch = inCT();
+                    if (ch == XC::CT_END) break;
+                } else {
+                    ch = inByte();
+                }
             }
+            rxrelease();
         }
-        lockRx.release();
         return *this;
     }
 

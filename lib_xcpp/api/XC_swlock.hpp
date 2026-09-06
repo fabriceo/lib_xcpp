@@ -14,10 +14,12 @@ public:
     //wait and set the lock
     inline void acquire() {
         unsigned myID = XC::getid()+1;
-        do { while ( lock ) { }; lock = myID;
-        //waiting some cpu cycle due to potential non-priority task having set the lock
-        asm volatile("nop;nop;nop;nop;nop;nop;nop"); } 
-        while( lock != myID ); } 
+        do { 
+            while ( lock ) { }; 
+            lock = myID;
+            //waiting some cpu cycle due to potential non-priority task having set the lock
+            asm volatile("nop;nop;nop;nop;nop;nop;nop"); 
+        } while( lock != myID ); } 
 
     //release the previously aquired lock
     inline void release() { lock = 0; }
@@ -31,6 +33,11 @@ public:
             return (lock == myID);
         }
         return 0;
+    }
+
+    inline bool acquired() {
+        unsigned myID = XC::getid()+1;
+        return lock == myID;
     }
 };
 
