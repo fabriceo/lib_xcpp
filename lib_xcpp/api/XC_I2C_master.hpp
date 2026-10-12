@@ -297,6 +297,8 @@ I2Cres_t writeReg( unsigned device, unsigned reg, unsigned val);
 
 I2Cres_t readReg( unsigned device, unsigned reg, unsigned &val);
 
+I2Cres_t readReg( unsigned device, unsigned reg, char &ch);
+
 I2Cres_t writeMultiBytes( unsigned device, unsigned n, ...);
 
 I2Cres_t writeRegs( unsigned device, unsigned reg, const unsigned n, const char buf[], unsigned &num_bytes_sent );

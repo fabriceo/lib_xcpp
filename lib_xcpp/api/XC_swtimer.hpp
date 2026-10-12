@@ -42,16 +42,17 @@ public:
     XCTimerMicros& rearm() { return set(srearm); }
     //set timer in the future to produce regular time (no drift) as last set()
     XCTimerMicros& rearmSync() { if (ofset) ofset += srearm; else set(srearm); return *this; }
-    //test if timer set in the future is now finished.
-    bool finished() { return (ofset==0) || (get() >= 0); }
+    //test if timer as been set already once
     bool notSetYet() { return (ofset == 0); }
+    //test if timer set in the future is now finished.
+    bool finished() { return notSetYet() || (get() >= 0); }
     //test if timer set in the future is now finished. if so then rearm it for same period as last
     bool finishedRearm() { bool res = finished(); if (res) rearm(); return res; }
     //test if timer set in the future is now finished. if so then rearm it for same regular period as last
     bool finishedRearmSync() { bool res = finished(); if (res) rearmSync(); return res; }
     //test if timer set in the future is still not finished
-    bool ongoing()  { return (ofset && (get() < 0)); }
-    bool notFinished()  { return ongoing(); }
+    bool notFinished()  { return ! finished(); }
+    bool ongoing()  { return notFinished(); }
     XCTimerMicros& wait() { while (ongoing()) {} ; return *this; }
     XCTimerMicros& wait(const long long t) { 
         long long target = XC::micros() + t;
@@ -98,8 +99,8 @@ public:
     //test if timer set in the future is now finished. if so then rearm it for same regular period as last
     bool finishedRearmSync() { bool res = finished(); if (res) rearmSync(); return res; }
     //test if timer set in the future is still not finished
-    bool ongoing()  { return (ofset && (get() < 0)); }
-    bool notFinished()  { return ongoing(); }
+    bool notFinished()  { return ! finished(); }
+    bool ongoing()  { return notFinished(); }
     XCSWTimer& wait() { while (ongoing()) {} ; return *this; }
     XCSWTimer& wait(const long long t) { 
         long long target = TIME() + t;

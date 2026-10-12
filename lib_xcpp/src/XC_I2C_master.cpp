@@ -245,6 +245,14 @@ I2Cres_t XC_I2Cmaster :: readReg( unsigned device, unsigned reg, unsigned &val) 
     return res;
 }
 
+I2Cres_t XC_I2Cmaster :: readReg( unsigned device, unsigned reg, char &ch) {
+    unsigned val;
+    I2Cres_t res = readReg(device,reg,val);
+    ch = val & 0xFF;
+    return res;
+}
+
+
 I2Cres_t XC_I2Cmaster :: writeMultiBytes(unsigned device, unsigned n, ...)
 {
     if (0==kbits_per_second) return NACK;

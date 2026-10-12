@@ -130,7 +130,7 @@ public:
     XCChanendPort& flushEND() {
         if (lockRx.acquired()) {
             while(1) {
-                char ch;
+                volatile char ch;
                 if (testCT()) {
                     ch = inCT();
                     if (ch == XC::CT_END) break;
